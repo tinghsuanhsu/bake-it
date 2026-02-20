@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#283618"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Bake it"/>
+  <meta name="description" content="Sourdough baking tracker — recipes, timers, ingredients"/>
+
+  <title>Bake it</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json"/>
+
+  <!-- Apple touch icons -->
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png"/>
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png"/>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"/>
+
+  <!-- Apple splash screens (safe area + notch support) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root {
+      height: 100%;
+      min-height: 100%;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background: #283618;
+      font-family: 'Open Sans', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Safe area insets for iPhone notch / home indicator */
+    #root {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    /* Prevent bounce scroll on iOS */
+    body { overflow: hidden; }
+    #root { overflow-y: auto; height: 100dvh; }
+
+    /* Loading screen */
+    #loader {
+      position: fixed; inset: 0;
+      background: #283618;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      z-index: 9999;
+      transition: opacity 0.4s;
+    }
+    #loader .icon {
+      width: 72px; height: 72px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #loader .icon span {
+      font-size: 36px; font-weight: 800; color: #fff;
+      font-family: 'Open Sans', sans-serif;
+    }
+    #loader p {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      font-family: 'Open Sans', sans-serif;
+    }
+  </style>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <!-- Loading screen shown until React mounts -->
+  <div id="loader">
+    <div class="icon"><span>B</span></div>
+    <p>Bake it</p>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- React + Babel (no build step needed) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- App -->
+  <script type="text/babel" data-type="module" src="/App.jsx"></script>
+
+  <script>
+    // Hide loader once React renders
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('#root > div')) {
+        const loader = document.getElementById('loader');
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 400);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.getElementById('root'), { childList: true });
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(r => console.log('SW registered:', r.scope))
+          .catch(e => console.log('SW failed:', e));
+      });
+    }
+  </script>
+</body>
+</html>
