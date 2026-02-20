@@ -1,46 +1,97 @@
-# Bake it — PWA
+# Bake it — Next.js + Neon
 
-A sourdough baking tracker. Works offline, installable on iPhone and Android.
+Sourdough baking tracker with persistent storage via PostgreSQL (Neon).
 
-## Files
+## Project structure
 
 ```
-bake-it-pwa/
-├── index.html       ← entry point
-├── App.jsx          ← main React app
-├── manifest.json    ← PWA manifest
-├── sw.js            ← service worker (offline support)
-└── icons/
-    ├── icon-192.png
-    └── icon-512.png
+bake-it/
+├── app/
+│   ├── layout.js              ← HTML shell, fonts
+│   ├── page.js                ← root page
+│   ├── ClientApp.jsx          ← main React app (client component)
+│   └── api/
+│       ├── db-init/route.js   ← run once to create tables
+│       ├── recipes/
+│       │   ├── route.js       ← GET all, POST create/update
+│       │   └── [id]/route.js  ← PUT update, DELETE
+│       ├── logs/
+│       │   ├── route.js       ← GET all, POST save session
+│       │   └── [id]/route.js  ← DELETE
+│       └── photos/route.js    ← POST upload, DELETE
+├── lib/
+│   └── db.js                  ← Neon connection helper
+├── public/
+│   ├── manifest.json          ← PWA manifest
+│   ├── sw.js                  ← service worker
+│   └── icons/
+├── .env.local                 ← YOUR secrets (never commit)
+├── .gitignore
+├── next.config.js
+└── package.json
 ```
 
-## Deploy (free options)
+## Deploy to Vercel (recommended)
 
-### Option A — Netlify (easiest, drag & drop)
-1. Go to https://netlify.com → sign up free
-2. Drag the entire `bake-it-pwa` folder onto the Netlify dashboard
-3. Done — you get a live HTTPS URL instantly
-4. On iPhone: open the URL in Safari → Share → Add to Home Screen
+### 1. Fill in your database credentials
 
-### Option B — GitHub Pages
-1. Create a GitHub repo, upload all files
-2. Settings → Pages → deploy from main branch
-3. Visit `https://yourusername.github.io/repo-name`
+Open `.env.local` and paste your Neon connection string:
+```
+DATABASE_URL=postgresql://neondb_owner:YOUR_PASSWORD@YOUR_HOST/neondb?sslmode=require
+```
 
-### Option C — Vercel
-1. `npm i -g vercel` then `vercel` inside the folder
-2. Follow prompts — live in ~30 seconds
+### 2. Push to GitHub
 
-## iPhone install
-1. Open the live URL in **Safari** (not Chrome)
-2. Tap the **Share** button (box with arrow)
-3. Tap **Add to Home Screen**
-4. Tap **Add**
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/YOUR_USERNAME/bake-it.git
+git push -u origin main
+```
 
-The app will appear on your home screen and run fullscreen, offline.
+### 3. Deploy on Vercel
 
-## Notes
-- No build step needed — uses Babel in-browser to compile JSX
-- For production performance, consider bundling with Vite or Parcel
-- Data is stored in React state (resets on close) — add localStorage for persistence
+1. Go to [vercel.com](https://vercel.com) → **New Project**
+2. Import your GitHub repo
+3. In **Environment Variables**, add:
+   - Key: `DATABASE_URL`
+   - Value: your Neon connection string (same as `.env.local`)
+4. Click **Deploy**
+
+### 4. Initialise the database
+
+Once deployed, visit this URL once in your browser to create the tables:
+```
+https://your-app.vercel.app/api/db-init
+```
+You should see: `{"ok":true,"message":"Tables created successfully"}`
+
+### 5. Install on iPhone
+
+1. Open your Vercel URL in **Safari**
+2. Tap Share → **Add to Home Screen**
+3. Done — runs fullscreen, offline-capable
+
+---
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+Don't forget to set `DATABASE_URL` in `.env.local` first.
+
+---
+
+## Database schema
+
+**recipes** — saved recipes with full formula data  
+**bake_logs** — completed bake sessions with notes  
+**photos** — base64 photos linked to bake sessions  
+
+All stored in your Neon free tier (which handles this workload easily).
