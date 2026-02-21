@@ -392,6 +392,7 @@ export default function App() {
   const TABS = [{v:VIEWS.RECIPES,l:"Recipes"},{v:VIEWS.BAKE,l:"Bake"},{v:VIEWS.LOG,l:"Log"},{v:VIEWS.INGREDIENTS,l:"Ingredients"}];
 
   return (
+    <>
     {dbLoading && (
       <div style={{position:'fixed',inset:0,background:'#283618',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,flexDirection:'column',gap:12}}>
         <div style={{width:56,height:56,borderRadius:14,border:'2px solid rgba(255,255,255,0.4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -956,7 +957,7 @@ export default function App() {
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
     </div>
+    </>
   );
 }
 
-export default App;
