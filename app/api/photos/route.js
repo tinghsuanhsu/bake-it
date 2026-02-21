@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getDb } from '../../../lib/db';
 
 // POST /api/photos — save a photo attached to a log

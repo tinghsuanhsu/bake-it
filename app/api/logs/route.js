@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getDb } from '../../../lib/db';
 
 // GET /api/logs — list all bake sessions, most recent first

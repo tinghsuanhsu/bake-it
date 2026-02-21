@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getDb } from '../../../../lib/db';
 
 // GET /api/recipes/[id]
