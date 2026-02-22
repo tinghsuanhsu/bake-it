@@ -303,13 +303,14 @@ export default function App() {
   // ── DB: load recipes + logs on mount ─────────────────
   useEffect(() => {
     // Ensure tables exist (idempotent), then load data
-    const makeBase = s => ({...makeRecipe(), ...s, steps: DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}))});
+    // Stable IDs so defaults can be detected in DB without duplication
+    const mkSteps = () => DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}));
     const STARTER_RECIPES = [
-      makeBase({name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"78",ingredients:[{id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:uid(),type:"other",flourId:null,label:"Water",grams:"750"},{id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},{id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."}),
-      makeBase({name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"80",ingredients:[{id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:uid(),type:"other",flourId:null,label:"Water",grams:"780"},{id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},{id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."}),
-      makeBase({name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"76",ingredients:[{id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:uid(),type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:uid(),type:"other",flourId:null,label:"Water",grams:"720"},{id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},{id:uid(),type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."}),
-      makeBase({name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"77",ingredients:[{id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:uid(),type:"other",flourId:null,label:"Water",grams:"750"},{id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},{id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."}),
-      makeBase({name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"76",ingredients:[{id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:uid(),type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:uid(),type:"other",flourId:null,label:"Water",grams:"720"},{id:uid(),type:"other",flourId:null,label:"Salt",grams:"18"},{id:uid(),type:"other",flourId:null,label:"Levain",grams:"180"},{id:uid(),type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."}),
+      {...makeRecipe(),id:"starter-1",name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"78",steps:mkSteps(),ingredients:[{id:"s1-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s1-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s1-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s1-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s1-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."},
+      {...makeRecipe(),id:"starter-2",name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"80",steps:mkSteps(),ingredients:[{id:"s2-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s2-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s2-w",type:"other",flourId:null,label:"Water",grams:"780"},{id:"s2-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s2-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."},
+      {...makeRecipe(),id:"starter-3",name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"76",steps:mkSteps(),ingredients:[{id:"s3-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:"s3-f2",type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:"s3-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s3-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s3-l",type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."},
+      {...makeRecipe(),id:"starter-4",name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"77",steps:mkSteps(),ingredients:[{id:"s4-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:"s4-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:"s4-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s4-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s4-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."},
+      {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"76",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
     ];
 
     fetch('/api/db-init')
@@ -318,14 +319,14 @@ export default function App() {
         fetch('/api/logs').then(r => r.json()),
       ]))
       .then(([recipeData, logData]) => {
-        if (Array.isArray(recipeData) && recipeData.length > 0) {
-          // DB has recipes — use them (user's saved data)
-          setRecipes(recipeData);
-        } else {
-          // First time user — seed starter recipes into DB
-          STARTER_RECIPES.forEach(r => saveRecipe(r));
-          setRecipes(STARTER_RECIPES);
-        }
+        const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
+        const dbIds = new Set(dbRecipes.map(r => r.id));
+        // Add any starter recipes not yet in DB
+        const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
+        missingStarters.forEach(r => saveRecipe(r));
+        // Show DB recipes + any missing starters, starters at the end
+        const allRecipes = [...dbRecipes, ...missingStarters];
+        setRecipes(allRecipes.length > 0 ? allRecipes : STARTER_RECIPES);
         if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
         setDbLoading(false);
       })
