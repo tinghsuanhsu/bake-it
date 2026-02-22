@@ -367,10 +367,12 @@ export default function App() {
 
   // ── DB: load recipes + logs on mount ─────────────────
   useEffect(() => {
-    Promise.all([
-      fetch('/api/recipes').then(r => r.json()),
-      fetch('/api/logs').then(r => r.json()),
-    ])
+    // Ensure tables exist (idempotent), then load data
+    fetch('/api/db-init')
+      .then(() => Promise.all([
+        fetch('/api/recipes').then(r => r.json()),
+        fetch('/api/logs').then(r => r.json()),
+      ]))
       .then(([recipeData, logData]) => {
         if (Array.isArray(recipeData) && recipeData.length > 0) setRecipes(recipeData);
         if (Array.isArray(logData)   && logData.length > 0)   setSavedLogs(logData);
