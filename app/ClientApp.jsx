@@ -301,47 +301,18 @@ export default function App() {
   const [dbError,   setDbError]   = useState(null);
 
   // ── DB: load recipes + logs on mount ─────────────────
-  useEffect(() => {
-    // Ensure tables exist (idempotent), then load data
-    // Stable IDs so defaults can be detected in DB without duplication
-    const mkSteps = () => DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}));
-    const STARTER_RECIPES = [
-      {...makeRecipe(),id:"starter-1",name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"78",steps:mkSteps(),ingredients:[{id:"s1-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s1-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s1-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s1-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s1-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."},
-      {...makeRecipe(),id:"starter-2",name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"80",steps:mkSteps(),ingredients:[{id:"s2-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s2-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s2-w",type:"other",flourId:null,label:"Water",grams:"780"},{id:"s2-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s2-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."},
-      {...makeRecipe(),id:"starter-3",name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"76",steps:mkSteps(),ingredients:[{id:"s3-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:"s3-f2",type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:"s3-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s3-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s3-l",type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."},
-      {...makeRecipe(),id:"starter-4",name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"77",steps:mkSteps(),ingredients:[{id:"s4-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:"s4-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:"s4-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s4-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s4-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."},
-      {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"76",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
-    ];
-
-    fetch('/api/db-init')
-      .then(() => Promise.all([
-        fetch('/api/recipes').then(r => r.json()),
-        fetch('/api/logs').then(r => r.json()),
-      ]))
-      .then(([recipeData, logData]) => {
-        const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
-        const dbIds = new Set(dbRecipes.map(r => r.id));
-        // Add any starter recipes not yet in DB
-        const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
-        missingStarters.forEach(r => saveRecipe(r));
-        // Show DB recipes + any missing starters, starters at the end
-        const allRecipes = [...dbRecipes, ...missingStarters];
-        setRecipes(allRecipes.length > 0 ? allRecipes : STARTER_RECIPES);
-        if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
-        setDbLoading(false);
-      })
-      .catch(err => { setDbError(err.message); setDbLoading(false); });
-  }, []);
 
   // ── DB: save recipe ───────────────────────────────────
   const saveRecipe = useCallback(async (recipe) => {
     try {
-      await fetch('/api/recipes', {
+      const res = await fetch('/api/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(recipe),
       });
-    } catch (e) { console.warn('Save recipe failed:', e); }
+      const json = await res.json();
+      console.log('[BakeIt] saveRecipe', recipe.name, '→', json);
+    } catch (e) { console.warn('[BakeIt] saveRecipe failed:', e); }
   }, []);
 
   // ── DB: delete recipe ─────────────────────────────────
@@ -353,12 +324,14 @@ export default function App() {
   // ── DB: save bake log ─────────────────────────────────
   const saveBakeLog = useCallback(async (log) => {
     try {
-      await fetch('/api/logs', {
+      const res = await fetch('/api/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(log),
       });
-    } catch (e) { console.warn('Save log failed:', e); }
+      const json = await res.json();
+      console.log('[BakeIt] saveBakeLog', log.recipeName||log.id, '→', json);
+    } catch (e) { console.warn('[BakeIt] saveBakeLog failed:', e); }
   }, []);
 
   // ── DB: delete log ────────────────────────────────────
@@ -380,6 +353,43 @@ export default function App() {
     clearTimeout(logSaveTimer.current[log.id]);
     logSaveTimer.current[log.id] = setTimeout(() => saveBakeLog(log), 1200);
   }, [saveBakeLog]);
+
+  useEffect(() => {
+    // Ensure tables exist (idempotent), then load data
+    // Stable IDs so defaults can be detected in DB without duplication
+    const mkSteps = () => DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}));
+    const STARTER_RECIPES = [
+      {...makeRecipe(),id:"starter-1",name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"78",steps:mkSteps(),ingredients:[{id:"s1-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s1-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s1-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s1-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s1-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."},
+      {...makeRecipe(),id:"starter-2",name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"80",steps:mkSteps(),ingredients:[{id:"s2-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s2-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s2-w",type:"other",flourId:null,label:"Water",grams:"780"},{id:"s2-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s2-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."},
+      {...makeRecipe(),id:"starter-3",name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"76",steps:mkSteps(),ingredients:[{id:"s3-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:"s3-f2",type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:"s3-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s3-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s3-l",type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."},
+      {...makeRecipe(),id:"starter-4",name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"77",steps:mkSteps(),ingredients:[{id:"s4-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:"s4-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:"s4-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s4-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s4-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."},
+      {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"76",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
+    ];
+
+    fetch('/api/db-init')
+      .then(() => Promise.all([
+        fetch('/api/recipes').then(r => r.json()),
+        fetch('/api/logs').then(r => r.json()),
+      ]))
+      .then(([recipeData, logData]) => {
+        console.log('[BakeIt] DB recipes raw:', recipeData);
+        console.log('[BakeIt] DB logs raw:', logData);
+        const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
+        const dbIds = new Set(dbRecipes.map(r => r.id));
+        const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
+        console.log('[BakeIt] DB has', dbRecipes.length, 'recipes, missing starters:', missingStarters.map(r=>r.name));
+        missingStarters.forEach(r => saveRecipe(r));
+        const allRecipes = [...dbRecipes, ...missingStarters];
+        setRecipes(allRecipes.length > 0 ? allRecipes : STARTER_RECIPES);
+        if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
+        setDbLoading(false);
+      })
+      .catch(err => {
+        console.error('[BakeIt] Load error:', err);
+        setDbError(err.message);
+        setDbLoading(false);
+      });
+  }, []);
 
 
   // ingredients page state
