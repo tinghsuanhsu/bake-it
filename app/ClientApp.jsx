@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 /* ─── VIEWS ─────────────────────────────────────── */
-const VIEWS = { RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients" };
+const VIEWS = { HOME:"home", RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients" };
 
 /* ─── AUSTRALIAN FLOUR DATABASE ─────────────────── */
 const FLOUR_DB = [
@@ -207,8 +207,8 @@ const DEFAULT_STEPS = [
   { id:"levain_mix", name:"Levain + Mix",  duration:20  },
   { id:"bulk",       name:"Bulk Ferment",  duration:240, sfCount:5 },
   { id:"divide",     name:"Divide & Rest", duration:30  },
-  { id:"shape",      name:"Shape",         duration:15  },
-  { id:"proof",      name:"Proof",         duration:60  },
+  { id:"shape",      name:"Pre-shape",     duration:15  },
+  { id:"proof",      name:"Shape",         duration:60  },
   { id:"retard",     name:"Retard",        duration:720 },
   { id:"bake",       name:"Bake",          duration:45  },
 ];
@@ -268,8 +268,73 @@ const makeRecipe = () => ({
    MAIN APP
 ════════════════════════════════════════════════════ */
 export default function App() {
-  const [view,setView]             = useState(VIEWS.RECIPES);
-  const [recipes,setRecipes]       = useState([{...makeRecipe(), name:"Classic Sourdough"}]);
+  const [view,setView]             = useState(VIEWS.HOME);
+  const [recipes,setRecipes] = useState(()=>{
+    const base = s => ({...makeRecipe(), ...s, steps: DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}))});
+    return [
+      base({
+        name:"Classic Country Loaf",
+        loaves:"2", loafG:"900", ddt:"78",
+        ingredients:[
+          {id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},
+          {id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},
+          {id:uid(),type:"other",flourId:null,label:"Water",grams:"750"},
+          {id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},
+          {id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"},
+        ],
+        notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes.",
+      }),
+      base({
+        name:"Tartine-Style 78%",
+        loaves:"1", loafG:"950", ddt:"80",
+        ingredients:[
+          {id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},
+          {id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},
+          {id:uid(),type:"other",flourId:null,label:"Water",grams:"780"},
+          {id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},
+          {id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"},
+        ],
+        notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping.",
+      }),
+      base({
+        name:"Light Rye Sourdough",
+        loaves:"2", loafG:"800", ddt:"76",
+        ingredients:[
+          {id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},
+          {id:uid(),type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},
+          {id:uid(),type:"other",flourId:null,label:"Water",grams:"720"},
+          {id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},
+          {id:uid(),type:"other",flourId:null,label:"Levain",grams:"220"},
+        ],
+        notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar.",
+      }),
+      base({
+        name:"Whole Wheat 50%",
+        loaves:"2", loafG:"850", ddt:"77",
+        ingredients:[
+          {id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},
+          {id:uid(),type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},
+          {id:uid(),type:"other",flourId:null,label:"Water",grams:"750"},
+          {id:uid(),type:"other",flourId:null,label:"Salt",grams:"20"},
+          {id:uid(),type:"other",flourId:null,label:"Levain",grams:"200"},
+        ],
+        notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly.",
+      }),
+      base({
+        name:"Spelt & Honey",
+        loaves:"1", loafG:"900", ddt:"76",
+        ingredients:[
+          {id:uid(),type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},
+          {id:uid(),type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},
+          {id:uid(),type:"other",flourId:null,label:"Water",grams:"720"},
+          {id:uid(),type:"other",flourId:null,label:"Salt",grams:"18"},
+          {id:uid(),type:"other",flourId:null,label:"Levain",grams:"180"},
+          {id:uid(),type:"other",flourId:null,label:"Honey",grams:"20"},
+        ],
+        notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather.",
+      }),
+    ];
+  });
   const [editId,setEditId]         = useState(null);
   const [selectedId,setSelectedId] = useState(null);
 
@@ -284,29 +349,37 @@ export default function App() {
   const [stepPhotos,setStepPhotos]   = useState({});
   const [sessionNotes,setSessionNotes] = useState("");
   const [editingStep,setEditingStep] = useState(null);
+  const [savedLogs,setSavedLogs]       = useState([]);
+  const [viewingLog,setViewingLog]     = useState(null);
+  const [steamDone,setSteamDone]       = useState(false);
+  const [foldNotes,setFoldNotes]       = useState({});  // {foldN: {note, photo}}
+  const [foldPhotos,setFoldPhotos]     = useState({});  // {foldN: src}
+  const [foldPhotoTarget,setFoldPhotoTarget] = useState(null); // foldN being targeted
+  const [expandedFold,setExpandedFold] = useState(null);
+  const [reviewPhotoTarget,setReviewPhotoTarget] = useState(null); // "key" for review photo
+  const [reviewPhotoHandler,setReviewPhotoHandler] = useState(null); // callback fn
   const [photoTarget,setPhotoTarget] = useState(null);
   const fileRef = useRef(null);
 
-  // ingredients page state
-  const [flourSearch,setFlourSearch]   = useState("");
-  const [flourFilter,setFlourFilter]   = useState("All");
-  const [expandedFlour,setExpandedFlour] = useState(null);
-
-  // ── API: load recipes from DB on mount ──────────────
+  // ── DB: loading state ────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
   const [dbError,   setDbError]   = useState(null);
 
+  // ── DB: load recipes + logs on mount ─────────────────
   useEffect(() => {
-    fetch('/api/recipes')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) setRecipes(data);
+    Promise.all([
+      fetch('/api/recipes').then(r => r.json()),
+      fetch('/api/logs').then(r => r.json()),
+    ])
+      .then(([recipeData, logData]) => {
+        if (Array.isArray(recipeData) && recipeData.length > 0) setRecipes(recipeData);
+        if (Array.isArray(logData)   && logData.length > 0)   setSavedLogs(logData);
         setDbLoading(false);
       })
       .catch(err => { setDbError(err.message); setDbLoading(false); });
   }, []);
 
-  // ── API: save recipe whenever it changes ─────────────
+  // ── DB: save recipe ───────────────────────────────────
   const saveRecipe = useCallback(async (recipe) => {
     try {
       await fetch('/api/recipes', {
@@ -317,15 +390,13 @@ export default function App() {
     } catch (e) { console.warn('Save recipe failed:', e); }
   }, []);
 
-  // ── API: delete recipe ────────────────────────────────
-  const deleteRecipe = useCallback(async (id) => {
-    setRecipes(rs => rs.filter(x => x.id !== id));
-    try {
-      await fetch(`/api/recipes/${id}`, { method: 'DELETE' });
-    } catch (e) { console.warn('Delete recipe failed:', e); }
+  // ── DB: delete recipe ─────────────────────────────────
+  const deleteRecipeDB = useCallback(async (id) => {
+    try { await fetch(`/api/recipes/${id}`, { method: 'DELETE' }); }
+    catch (e) { console.warn('Delete recipe failed:', e); }
   }, []);
 
-  // ── API: save bake log ────────────────────────────────
+  // ── DB: save bake log ─────────────────────────────────
   const saveBakeLog = useCallback(async (log) => {
     try {
       await fetch('/api/logs', {
@@ -336,17 +407,34 @@ export default function App() {
     } catch (e) { console.warn('Save log failed:', e); }
   }, []);
 
-  // ── API: save photo ───────────────────────────────────
-  const savePhoto = useCallback(async (photoPayload) => {
-    try {
-      await fetch('/api/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(photoPayload),
-      });
-    } catch (e) { console.warn('Save photo failed:', e); }
+  // ── DB: delete log ────────────────────────────────────
+  const deleteLogDB = useCallback(async (id) => {
+    try { await fetch(`/api/logs/${id}`, { method: 'DELETE' }); }
+    catch (e) { console.warn('Delete log failed:', e); }
   }, []);
 
+  // ── DB: auto-save recipes on change (debounced) ───────
+  const recipeSaveTimer = useRef({});
+  const scheduleRecipeSave = useCallback((recipe) => {
+    clearTimeout(recipeSaveTimer.current[recipe.id]);
+    recipeSaveTimer.current[recipe.id] = setTimeout(() => saveRecipe(recipe), 1200);
+  }, [saveRecipe]);
+
+  // ── DB: auto-save logs on change (debounced) ──────────
+  const logSaveTimer = useRef({});
+  const scheduleLogSave = useCallback((log) => {
+    clearTimeout(logSaveTimer.current[log.id]);
+    logSaveTimer.current[log.id] = setTimeout(() => saveBakeLog(log), 1200);
+  }, [saveBakeLog]);
+
+
+  // ingredients page state
+  const [flourSearch,setFlourSearch]   = useState("");
+  const [flourFilter,setFlourFilter]   = useState("All");
+  const [expandedFlour,setExpandedFlour] = useState(null);
+  const [userFlours,setUserFlours]       = useState([]);
+  const [showAddFlour,setShowAddFlour]   = useState(false);
+  const [newFlour,setNewFlour]           = useState({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
 
 
   useEffect(()=>{ if(!bakeStarted)return; const id=setInterval(()=>setTick(t=>t+1),1000); return()=>clearInterval(id); },[bakeStarted]);
@@ -374,31 +462,88 @@ export default function App() {
     if(next<steps.length) setSST(p=>({...p,[next]:now}));
   };
   const toggleSF = (si,n) => setSfDone(prev=>{ const s=new Set(prev[si]||[]); s.has(n)?s.delete(n):s.add(n); return{...prev,[si]:s}; });
-  const handlePhoto = e => { const file=e.target.files[0]; if(!file||photoTarget==null)return; const reader=new FileReader(); reader.onload=ev=>setStepPhotos(p=>({...p,[photoTarget]:[...(p[photoTarget]||[]),{src:ev.target.result,ts:Date.now()}]})); reader.readAsDataURL(file); e.target.value=""; };
+  const handlePhoto = e => {
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      if(reviewPhotoHandler){
+        reviewPhotoHandler(ev.target.result);
+        setReviewPhotoHandler(null);
+      } else if(foldPhotoTarget!=null){
+        setFoldPhotos(p=>({...p,[foldPhotoTarget]:ev.target.result}));
+        setFoldPhotoTarget(null);
+      } else if(photoTarget!=null){
+        setStepPhotos(p=>({...p,[photoTarget]:[...(p[photoTarget]||[]),{src:ev.target.result,ts:Date.now()}]}));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value="";
+  };
+
+
+  const finishBake = () => {
+    if(!bakeRecipe) return;
+    const log = {
+      id: uid(),
+      recipeName: bakeRecipe.name,
+      recipeId: bakeRecipe.id,
+      startTime: bakeStartTime,
+      endTime: Date.now(),
+      stepNotes: {...stepNotes},
+      stepPhotos: {...stepPhotos},
+      sessionNotes,
+      foldNotes: {...foldNotes},
+      foldPhotos: {...foldPhotos},
+      autolyseEnabled: bakeRecipe.autolyseEnabled,
+      ingredients: bakeRecipe.ingredients,
+      steps: bakeRecipe.steps,
+      loaves: bakeRecipe.loaves,
+      loafG: bakeRecipe.loafG,
+      rating: 0,
+    };
+    setSavedLogs(prev => [log, ...prev]);
+    saveBakeLog(log);
+    // reset bake state
+    setSelectedId(null);
+    setBakeStarted(false);
+    setBST(null);
+    setActiveStep(null);
+    setSST({});
+    setSfDone({});
+    setStepNotes({});
+    setStepPhotos({});
+    setSessionNotes("");
+    setFoldNotes({});
+    setFoldPhotos({});
+    setExpandedFold(null);
+    setSteamDone(false);
+    setView(VIEWS.LOG);
+  };
 
   // recipe helpers
-  const upd  = (id,fn) => setRecipes(rs=>rs.map(r=>r.id===id?fn(r):r));
+  const upd  = (id,fn) => setRecipes(rs=>{ const next=rs.map(r=>r.id===id?fn(r):r); const changed=next.find(r=>r.id===id); if(changed) scheduleRecipeSave(changed); return next; });
   const updE = fn => editId && upd(editId,fn);
-  const addRecipe = () => { const r=makeRecipe(); setRecipes(rs=>[...rs,r]); saveRecipe(r); setEditId(r.id); };
+  const addRecipe = () => { const r=makeRecipe(); setRecipes(rs=>[...rs,r]); saveRecipe(r); setEditId(r.id); setView(VIEWS.RECIPES); };
 
   // flour filter
-  const flourTypes = ["All",...new Set(FLOUR_DB.map(f=>f.type))];
-  const filtered = FLOUR_DB.filter(f=>{
+  const allFlours = [...FLOUR_DB, ...userFlours];
+  const flourTypes = ["All",...new Set(allFlours.map(f=>f.type))];
+  const filtered = allFlours.filter(f=>{
     const t=flourFilter==="All"||f.type===flourFilter;
     const q=!flourSearch||[f.name,f.brand,f.type].some(x=>x.toLowerCase().includes(flourSearch.toLowerCase()));
     return t&&q;
   });
 
-  const TABS = [{v:VIEWS.RECIPES,l:"Recipes"},{v:VIEWS.BAKE,l:"Bake"},{v:VIEWS.LOG,l:"Log"},{v:VIEWS.INGREDIENTS,l:"Ingredients"}];
+  const TABS = [{v:VIEWS.HOME,l:"Home"},{v:VIEWS.RECIPES,l:"Recipes"},{v:VIEWS.BAKE,l:"Bake"},{v:VIEWS.LOG,l:"Log"},{v:VIEWS.INGREDIENTS,l:"Ingredients"}];
 
   return (
     <>
     {dbLoading && (
-      <div style={{position:'fixed',inset:0,background:'#283618',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999,flexDirection:'column',gap:12}}>
-        <div style={{width:56,height:56,borderRadius:14,border:'2px solid rgba(255,255,255,0.4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <span style={{fontSize:28,fontWeight:800,color:'#fff'}}>B</span>
+      <div style={{position:"fixed",inset:0,background:"#283618",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,flexDirection:"column",gap:12}}>
+        <div style={{width:56,height:56,borderRadius:14,border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontSize:28,fontWeight:800,color:"#FFFFFF"}}>B</span>
         </div>
-        <p style={{color:'rgba(255,255,255,0.6)',fontSize:14,fontFamily:"'Open Sans',sans-serif"}}>Loading your recipes…</p>
+        <p style={{color:"rgba(255,255,255,0.6)",fontSize:14,fontFamily:"'Open Sans',sans-serif"}}>Loading your recipes…</p>
       </div>
     )}
     <div style={{minHeight:"100vh",background:"#F8F8F6",fontFamily:"'Open Sans', sans-serif",color:"#283618"}}>
@@ -422,7 +567,7 @@ export default function App() {
 
       {/* NAV */}
       <nav style={{background:"rgba(40,54,24,0.97)",backdropFilter:"blur(20px)",borderBottom:"0.5px solid #E0DED8",position:"sticky",top:0,zIndex:100,height:54,display:"flex",alignItems:"center",padding:"0 16px",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.HOME);}}>
           <div style={{width:28,height:28,borderRadius:8,border:"2px solid rgba(255,255,255,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
             <span style={{fontSize:15,fontWeight:800,color:"#FFFFFF",lineHeight:1}}>B</span>
           </div>
@@ -431,12 +576,94 @@ export default function App() {
         <div style={{display:"flex",background:"#FFFFFF",borderRadius:11,padding:3,gap:1}}>
           {TABS.map(({v,l})=>(
             <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-              style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,background:view===v&&!editId?"#E0DED8":"transparent",color:view===v&&!editId?"#283618":"#8A8A84",boxShadow:view===v&&!editId?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.2s"}}>{l}</button>
+              style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,background:view===v&&!editId?"#E0DED8":"transparent",color:view===v&&!editId?"#283618":"#A8A8A0",boxShadow:view===v&&!editId?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.2s"}}>{l}</button>
           ))}
         </div>
       </nav>
 
       <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 90px"}}>
+
+
+        {/* ══════════════════════════════
+            HOME / DASHBOARD
+        ══════════════════════════════ */}
+        {view===VIEWS.HOME && <div className="su">
+          {/* Greeting */}
+          <div style={{marginBottom:24}}>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em",marginBottom:4}}>Good baking</div>
+            <div style={{fontSize:14,color:"#606c38"}}>Your sourdough at a glance</div>
+          </div>
+
+          {/* Stats row */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+            {[
+              {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
+              {label:"Bakes",value:savedLogs.length,action:()=>setView(VIEWS.LOG)},
+              {label:"Flours",value:21,action:()=>setView(VIEWS.INGREDIENTS)},
+            ].map(s=>(
+              <button key={s.label} onClick={s.action} style={{background:"#FFFFFF",borderRadius:16,padding:"16px 12px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 8px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%"}}>
+                <div style={{fontSize:28,fontWeight:800,letterSpacing:"-0.03em",color:"#283618",lineHeight:1,marginBottom:4}}>{s.value}</div>
+                <div style={{fontSize:11,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Active bake banner */}
+          {bakeStarted && bakeRecipe && (
+            <button onClick={()=>setView(VIEWS.BAKE)} style={{width:"100%",background:"#283618",borderRadius:16,padding:"16px 18px",border:"none",textAlign:"left",marginBottom:16,cursor:"pointer"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Active bake</div>
+                  <div style={{fontSize:17,fontWeight:800,color:"#FFFFFF"}}>{bakeRecipe.name}</div>
+                  {(()=>{
+                  const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
+                  const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
+                  const estNow=new Date();
+                  const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
+                  const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
+                  return <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",marginTop:2}}>
+                    Started {timeStr(bakeStartTime)}{estStr&&<> · Est. finish <strong style={{color:"#FFFFFF"}}>{estStr}</strong></>}
+                  </div>;
+                })()}
+                </div>
+                <div style={{fontSize:22,color:"rgba(255,255,255,0.8)"}}>→</div>
+              </div>
+            </button>
+          )}
+
+          {/* Quick actions */}
+          <SecH>Quick Actions</SecH>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+            {[
+              {label:"Recipes",sub:`${recipes.length} saved`,action:()=>setView(VIEWS.RECIPES)},
+              {label:"New Recipe",sub:"Start from scratch",action:addRecipe},
+              {label:"Flour Database",sub:"21 Australian flours",action:()=>setView(VIEWS.INGREDIENTS)},
+              {label:"Bake Log",sub:`${savedLogs.length} session${savedLogs.length!==1?"s":""}`,action:()=>setView(VIEWS.LOG)},
+            ].map(a=>(
+              <button key={a.label} onClick={a.action} style={{background:"#FFFFFF",borderRadius:16,padding:"16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 8px rgba(0,0,0,0.05)",cursor:"pointer"}}>
+                <div style={{fontSize:14,fontWeight:700,color:"#283618",marginBottom:2}}>{a.label}</div>
+                <div style={{fontSize:12,color:"#6E6E6E"}}>{a.sub}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Recent bakes */}
+          {savedLogs.length>0&&<>
+            <SecH>Recent Bakes</SecH>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {savedLogs.slice(0,3).map(log=>(
+                <button key={log.id} onClick={()=>{setViewingLog(log.id);setView(VIEWS.LOG);}}
+                  style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700,color:"#283618"}}>{log.recipeName}</div>
+                    <div style={{fontSize:12,color:"#6E6E6E",marginTop:2}}>{new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"})}</div>
+                  </div>
+                  <div style={{fontSize:13,color:"#6E6E6E"}}>→</div>
+                </button>
+              ))}
+            </div>
+          </>}
+        </div>}
 
         {/* ══════════════════════════════
             RECIPES LIST
@@ -453,7 +680,7 @@ export default function App() {
           {recipes.map(r=>{
             const primaryFlourIng = r.ingredients.find(i=>i.type==="flour");
             const primaryFlour    = primaryFlourIng?.flourId ? FLOUR_DB.find(f=>f.id===primaryFlourIng.flourId) : null;
-            const flourG          = parseFloat(r.ingredients.find(i=>i.type==="flour")?.grams)||0;
+            const flourG          = r.ingredients.filter(i=>i.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
             const totalMin        = (r.autolyseEnabled?r.steps:r.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
             return <Card key={r.id} style={{padding:0,overflow:"hidden"}}>
 
@@ -485,7 +712,7 @@ export default function App() {
               </div>
               <div style={{padding:"10px 18px",background:"#FFFFFF",borderTop:"0.5px solid #E0DED8",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:"#606c38",flex:1,marginRight:12}}>{r.notes||"No notes"}</span>
-                <button onClick={()=>deleteRecipe(r.id)} style={{fontSize:12,color:"#9E3A3A",background:"none",fontWeight:600,flexShrink:0}}>Delete</button>
+                <button onClick={()=>{setRecipes(rs=>rs.filter(x=>x.id!==r.id));deleteRecipeDB(r.id);}} style={{fontSize:12,color:"#9E3A3A",background:"none",fontWeight:600,flexShrink:0}}>Delete</button>
               </div>
             </Card>;
           })}
@@ -544,9 +771,9 @@ export default function App() {
             </div>
 
             {editRecipe.ingredients.map((ing,idx)=>{
-              const flourG=parseFloat(editRecipe.ingredients.find(i=>i.type==="flour")?.grams)||0;
+              const totalFlourG=editRecipe.ingredients.filter(i=>i.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
               const grams =parseFloat(ing.grams)||0;
-              const pct   =ing.type==="flour"?"100.0":(flourG?bkPct(grams,flourG):"—");
+              const pct   =totalFlourG?bkPct(grams,totalFlourG):"—";
               const flour =ing.flourId?FLOUR_DB.find(f=>f.id===ing.flourId):null;
 
               return <div key={ing.id} style={{borderBottom:idx<editRecipe.ingredients.length-1?"0.5px solid #1E2C30":"none"}}>
@@ -655,15 +882,36 @@ export default function App() {
                       onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,sfCount:parseInt(e.target.value)||0}:st)}))}
                       style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:700,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
                   </div>}
-                  {!disabled && <div style={{display:"flex",alignItems:"center",gap:5}}>
-                    <input type="number" value={displayVal} min={1} step={unit==="hr"?0.5:1}
-                      onChange={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:m}:st)}));}}
-                      style={{width:48,background:"#283618",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center"}}/>
-                    <div style={{display:"flex",background:"#283618",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
-                      {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
-                        style={{padding:"4px 6px",fontSize:11,fontWeight:700,background:unit===u?"#283618":"transparent",color:unit===u?"#F8F8F6":"#606c38"}}>{u}</button>)}
+                  {!disabled && (s.id==="retard" ? (
+                    /* Retard: overnight on/off + hr input when off */
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {unit!=="overnight" && <>
+                        <input type="number" value={displayVal} min={1} step={1}
+                          onChange={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:m}:st)}));}}
+                          style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
+                        <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
+                          {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
+                            style={{padding:"4px 6px",fontSize:11,fontWeight:700,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                        </div>
+                      </>}
+                      <button onClick={()=>{
+                        const next=unit==="overnight"?"hr":"overnight";
+                        updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"?600:st.durationMin}:st)}));
+                      }} style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
+                        {unit==="overnight"?"Overnight: On":"Overnight"}
+                      </button>
                     </div>
-                  </div>}
+                  ) : (
+                    <div style={{display:"flex",alignItems:"center",gap:5}}>
+                      <input type="number" value={displayVal} min={1} step={unit==="hr"?0.5:1}
+                        onChange={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:m}:st)}));}}
+                        style={{width:48,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
+                      <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
+                        {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
+                          style={{padding:"4px 6px",fontSize:11,fontWeight:700,background:unit===u?"#283618":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>;
             })}
@@ -699,11 +947,22 @@ export default function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div>
                 <div style={{fontSize:22,fontWeight:800,letterSpacing:"-0.03em"}}>{bakeRecipe.name}</div>
-                <div style={{fontSize:13,color:"#606c38",marginTop:3}}>Started {timeStr(bakeStartTime)} · {bakeRecipe.loaves} × {bakeRecipe.loafG}g · DDT {bakeRecipe.ddt}°{bakeRecipe.tempUnit||"F"}</div>
+                {(()=>{
+                const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
+                const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
+                const estNow=new Date();
+                const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
+                const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
+                return <div style={{fontSize:13,color:"#606c38",marginTop:3}}>
+                  Started {timeStr(bakeStartTime)} · {bakeRecipe.loaves} × {bakeRecipe.loafG}g · DDT {bakeRecipe.ddt}°{bakeRecipe.tempUnit||"F"}
+                  {estStr&&<span> · Est. finish <strong style={{color:"#283618"}}>{estStr}</strong></span>}
+                </div>;
+              })()}
+                <button onClick={finishBake} style={{marginTop:10,padding:"7px 14px",borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:12,fontWeight:700}}>Finish & Save →</button>
               </div>
               {activeStep!=null&&activeStep<bakeRecipe.steps.length&&
                 <div style={{background:bakeRecipe.steps[activeStep].color+"22",color:bakeRecipe.steps[activeStep].color,borderRadius:20,padding:"6px 13px",fontSize:13,fontWeight:700}}>
-                  {activeStep+1}/{bakeRecipe.steps.length}
+                  {activeStep+1}/{bakeRecipe.autolyseEnabled?bakeRecipe.steps.length:bakeRecipe.steps.filter(s=>s.id!=="autolyse").length}
                 </div>}
             </div>
 
@@ -711,12 +970,12 @@ export default function App() {
               const s=bakeRecipe.steps[activeStep],sfNext=nextSfIn(activeStep);
               return <Card style={{padding:24}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
-                  <div style={{fontSize:11,fontWeight:800,color:s.color,textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.name}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/><div style={{fontSize:11,fontWeight:800,color:"#283618",textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.name}</div></div>
                   <div style={{fontSize:13,fontWeight:600,color:"#606c38"}}>{fmtDur(s.durationMin)}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:24,marginBottom:22}}>
                   <Ring progress={prog(activeStep)} color={s.color}>
-                    <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1}}>{fmtTime(remaining(activeStep))}</div>
+                    <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,color:"#283618"}}>{fmtTime(remaining(activeStep))}</div>
                     <div style={{fontSize:10,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>left</div>
                   </Ring>
                   <div style={{flex:1,display:"flex",flexDirection:"column",gap:16}}>
@@ -728,20 +987,80 @@ export default function App() {
                 <div style={{height:4,background:"#283618",borderRadius:4,marginBottom:20,overflow:"hidden"}}>
                   <div style={{height:"100%",background:s.color,borderRadius:4,width:`${prog(activeStep)*100}%`,transition:"width 1s linear"}}/>
                 </div>
-                {s.sfCount>0&&<div style={{marginBottom:18}}>
-                  <Lbl>Stretch &amp; Folds</Lbl>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    {Array.from({length:s.sfCount},(_,i)=>i+1).map(n=>{
+                {s.id==="bulk"&&<div style={{marginBottom:18}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <Lbl style={{marginBottom:0}}>Stretch &amp; Folds</Lbl>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {s.sfCount>0&&<button onClick={()=>{
+                        const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
+                        upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.max(0,st.sfCount-1)}:st)}));
+                      }} style={{width:28,height:28,borderRadius:8,background:"#EFEFED",color:"#606c38",fontSize:16,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>}
+                      <span style={{fontSize:13,fontWeight:700,color:"#606c38",minWidth:16,textAlign:"center"}}>{s.sfCount}</span>
+                      <button onClick={()=>{
+                        const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
+                        upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.min(20,st.sfCount+1)}:st)}));
+                      }} style={{width:28,height:28,borderRadius:8,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {Array.from({length:s.sfCount},(_,fi)=>fi+1).map(n=>{
                       const done=sfDone[activeStep]?.has(n);
-                      return <button key={n} onClick={()=>toggleSF(activeStep,n)}
-                        style={{width:44,height:44,borderRadius:13,background:done?s.color:"#E0DED8",color:done?"#FFFFFF":"#606c38",fontSize:15,fontWeight:800,boxShadow:done?`0 4px 12px ${s.color}44`:"none"}}>
-                        {done?"✓":n}
-                      </button>;
+                      const isExpanded=expandedFold===n;
+                      const note=foldNotes[n]||"";
+                      const photo=foldPhotos[n];
+                      return <div key={n} style={{borderRadius:12,border:`1px solid ${done?"#283618":"#E0DED8"}`,overflow:"hidden",background:done?"#283618":"#FAFAFA"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}
+                          onClick={()=>setExpandedFold(isExpanded?null:n)}>
+                          <button onClick={e=>{e.stopPropagation();toggleSF(activeStep,n);}}
+                            style={{width:36,height:36,borderRadius:10,background:done?"#FFFFFF22":"#EFEFED",color:done?"#FFFFFF":"#606c38",fontSize:13,fontWeight:800,flexShrink:0,border:done?`2px solid ${s.color}`:"2px solid transparent"}}>
+                            {done?"✓":n}
+                          </button>
+                          <span style={{flex:1,fontSize:14,fontWeight:600,color:done?"#FFFFFF":"#283618"}}>Fold {n}</span>
+                          {note&&<span style={{fontSize:11,color:done?"rgba(255,255,255,0.5)":"#606c38",fontWeight:600}}>note</span>}
+                          {photo&&<span style={{fontSize:11,color:done?"rgba(255,255,255,0.5)":"#606c38",fontWeight:600}}>photo</span>}
+                          <span style={{fontSize:11,color:done?"rgba(255,255,255,0.4)":"#6E6E6E"}}>{isExpanded?"▲":"▼"}</span>
+                        </div>
+                        {isExpanded&&<div style={{padding:"0 12px 12px",borderTop:`1px solid ${done?"rgba(255,255,255,0.1)":"#E0DED8"}`,background:done?"rgba(255,255,255,0.06)":"#F8F8F6"}}>
+                          <textarea placeholder={`Notes for fold ${n}…`} value={note}
+                            onChange={e=>setFoldNotes(p=>({...p,[n]:e.target.value}))} rows={2}
+                            style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"8px 2px",fontSize:13,color:done?"#FFFFFF":"#283618",resize:"vertical",lineHeight:1.6,outline:"none",fontFamily:"inherit",marginTop:10,marginBottom:10}}/>
+                          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                            {photo&&<div style={{position:"relative"}}>
+                              <img src={photo} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:10,border:"1px solid #E0DED8"}}/>
+                              <button onClick={()=>setFoldPhotos(p=>{const n2={...p};delete n2[n];return n2;})}
+                                style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                            </div>}
+                            {!photo&&<button onClick={()=>{setFoldPhotoTarget(n);fileRef.current?.click();}}
+                              style={{width:56,height:56,borderRadius:10,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
+                          </div>
+                        </div>}
+                      </div>;
+                    })}
+                  </div>
+                </div>}
+                {s.id==="bake"&&<div style={{marginBottom:18}}>
+                  <Lbl>Oven Steps</Lbl>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {[
+                      {key:"steam_in",  label:"Add steam",    desc:"Place tray of boiling water or lids on"},
+                      {key:"steam_out", label:"Remove steam", desc:"Remove steam source, vent oven"},
+                    ].map(sub=>{
+                      const done=steamDone[sub.key];
+                      return <div key={sub.key} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderRadius:12,background:done?"#283618":"#F2F2F0",border:`1px solid ${done?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
+                        <button onClick={()=>setSteamDone(p=>({...p,[sub.key]:!p[sub.key]}))}
+                          style={{width:32,height:32,borderRadius:9,background:done?"#FFFFFF22":"#FFFFFF",border:done?"2px solid rgba(255,255,255,0.3)":"2px solid #E0DED8",color:done?"#FFFFFF":"#606c38",fontSize:14,fontWeight:800,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {done?"✓":""}
+                        </button>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:700,color:done?"#FFFFFF":"#283618"}}>{sub.label}</div>
+                          <div style={{fontSize:11,color:done?"rgba(255,255,255,0.6)":"#6E6E6E",marginTop:1}}>{sub.desc}</div>
+                        </div>
+                      </div>;
                     })}
                   </div>
                 </div>}
                 <textarea placeholder={`Notes for ${s.name}…`} value={stepNotes[activeStep]||""} onChange={e=>setStepNotes(p=>({...p,[activeStep]:e.target.value}))} rows={2}
-                  style={{width:"100%",background:"#F8F8F6",border:"none",borderLeft:"3px solid #E0DED8",borderRadius:0,padding:"8px 12px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,marginBottom:14,outline:"none",fontFamily:"inherit"}}/>
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,marginBottom:14,outline:"none",fontFamily:"inherit"}}/>
                 <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:20}}>
                   {(stepPhotos[activeStep]||[]).map((ph,pi)=><div key={pi} style={{position:"relative"}}>
                     <img src={ph.src} alt="" style={{width:64,height:64,objectFit:"cover",borderRadius:14,border:"1px solid #E0DED8"}}/>
@@ -751,8 +1070,9 @@ export default function App() {
                   <button onClick={()=>{setPhotoTarget(activeStep);fileRef.current?.click();}}
                     style={{width:64,height:64,borderRadius:14,border:"2px dashed #E0DED8",background:"transparent",color:"#E0DED8",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                 </div>
+
                 <button onClick={()=>completeStep(activeStep)}
-                  style={{width:"100%",padding:"16px",borderRadius:14,background:s.color,color:"#283618",fontSize:16,fontWeight:800,boxShadow:`0 6px 20px ${s.color}55`,letterSpacing:"-0.01em"}}>
+                  style={{width:"100%",padding:"16px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:800,letterSpacing:"-0.01em"}}>
                   Complete → {activeStep+1<bakeRecipe.steps.length?bakeRecipe.steps[activeStep+1].name:"Finish"}
                 </button>
               </Card>;
@@ -768,7 +1088,7 @@ export default function App() {
 
             <SecH>Timeline — tap to edit notes</SecH>
             <Card style={{padding:0,overflow:"hidden"}}>
-              {bakeRecipe.steps.map((s,i)=>{
+              {(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).map((s,i)=>{
                 const isPast=activeStep!=null&&i<activeStep,isCurr=i===activeStep,isFuture=activeStep!=null&&i>activeStep;
                 const canEdit=isPast||isCurr,isOpen=editingStep===i;
                 return <div key={s.id} style={{borderBottom:i<bakeRecipe.steps.length-1?"0.5px solid #1E2C30":"none"}}>
@@ -779,7 +1099,7 @@ export default function App() {
                     {stepNotes[i]&&<span style={{fontSize:11,color:"#606c38",fontWeight:700}}>note</span>}
                     {(stepPhotos[i]?.length||0)>0&&<span style={{fontSize:11,color:"#606c38",fontWeight:700}}>{stepPhotos[i].length} photo{stepPhotos[i].length>1?"s":""}</span>}
                     {isPast&&!isOpen&&<span style={{color:"#5C5C5C",fontSize:11,fontWeight:700}}>done</span>}
-                    {isCurr&&<span className="pulse" style={{fontSize:11,fontWeight:800,color:s.color}}>ACTIVE</span>}
+                    {isCurr&&<span className="pulse" style={{fontSize:11,fontWeight:800,color:"#283618",background:s.color+"33",borderRadius:6,padding:"2px 7px"}}>ACTIVE</span>}
                     <span style={{fontSize:13,color:"#606c38"}}>{fmtDur(s.durationMin)}</span>
                     {s.sfCount>0&&<span style={{fontSize:11,fontWeight:700,color:s.color,background:s.color+"20",borderRadius:7,padding:"2px 7px"}}>×{s.sfCount}</span>}
                     {canEdit&&<span style={{fontSize:11,color:"#E0DED8",flexShrink:0}}>{isOpen?"▲":"▼"}</span>}
@@ -809,56 +1129,290 @@ export default function App() {
             LOG
         ══════════════════════════════ */}
         {view===VIEWS.LOG && <div className="su">
-          <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em",marginBottom:4}}>Session Log</div>
-          <div style={{fontSize:14,color:"#606c38",marginBottom:20}}>{bakeStartTime&&bakeRecipe?`${bakeRecipe.name} · Started ${timeStr(bakeStartTime)}`:"No active session"}</div>
 
-          {bakeRecipe&&<><SecH>Recipe</SecH>
-          <Card>
-            <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>{bakeRecipe.name}</div>
-            <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-              {bakeRecipe.ingredients.filter(i=>parseFloat(i.grams)).map(i=>{
-                const fl=i.flourId?FLOUR_DB.find(f=>f.id===i.flourId):null;
-                const flourG=parseFloat(bakeRecipe.ingredients.find(x=>x.type==="flour")?.grams)||0;
-                return <div key={i.id}>
-                  <Lbl>{fl?fl.name:i.label}</Lbl>
-                  <div style={{fontSize:18,fontWeight:800}}>{i.grams}g</div>
-                  {i.type!=="flour"&&flourG>0&&<div style={{fontSize:12,fontWeight:700,color:"#5C5C5C"}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
-                </div>;
-              })}
-            </div>
-          </Card></>}
+          {/* ── Viewing a saved log ─────────────────── */}
+          {viewingLog ? (()=>{
+            const log = savedLogs.find(l=>l.id===viewingLog);
+            if(!log) return null;
+            const durationMin = log.endTime&&log.startTime ? Math.round((log.endTime-log.startTime)/60000) : null;
+            const updateLog = patch => setSavedLogs(prev=>{
+              const next=prev.map(l=>l.id===viewingLog?{...l,...patch}:l);
+              const changed=next.find(l=>l.id===viewingLog);
+              if(changed) scheduleLogSave(changed);
+              return next;
+            });
+            const updateStepNote = (i,val) => setSavedLogs(prev=>{
+              const next=prev.map(l=>l.id===viewingLog?{...l,stepNotes:{...l.stepNotes,[i]:val}}:l);
+              const changed=next.find(l=>l.id===viewingLog);
+              if(changed) scheduleLogSave(changed);
+              return next;
+            });
+            return <>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+                <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
+                <div style={{flex:1}}>
+                  <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
+                    style={{fontSize:20,fontWeight:800,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",width:"100%",padding:"2px 0",outline:"none",fontFamily:"inherit"}}/>
+                  {log.isManual ? (
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
+                      <input type="date" value={new Date(log.startTime).toISOString().slice(0,10)}
+                        onChange={e=>updateLog({startTime:new Date(e.target.value).getTime()})}
+                        style={{background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#606c38",outline:"none",fontFamily:"inherit",padding:"2px 0"}}/>
+                    </div>
+                  ) : (
+                    <div style={{fontSize:13,color:"#606c38",marginTop:2}}>{new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"})}{durationMin?` · ${Math.floor(durationMin/60)}h ${durationMin%60}m`:""}</div>
+                  )}
+                </div>
+              </div>
 
-          <SecH>Step Notes</SecH>
-          {bakeRecipe&&bakeRecipe.steps.some((_,i)=>stepNotes[i]||stepPhotos[i]?.length)?(
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {bakeRecipe.steps.map((s,i)=>{
-                if(!stepNotes[i]&&!stepPhotos[i]?.length)return null;
-                return <Card key={s.id}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                    <div style={{width:9,height:9,borderRadius:"50%",background:s.color}}/>
-                    <span style={{fontSize:15,fontWeight:700}}>{s.name}</span>
-                    {stepStartTimes[i]&&<span style={{fontSize:12,color:"#606c38",marginLeft:"auto"}}>{timeStr(stepStartTimes[i])}</span>}
+              {log.isManual && (
+                <Card style={{marginBottom:4}}>
+                  <Lbl>Link to recipe (optional)</Lbl>
+                  <select value={log.recipeId||""} onChange={e=>{
+                    const r=recipes.find(x=>x.id===e.target.value);
+                    updateLog({recipeId:e.target.value,recipeName:r?r.name:log.recipeName,ingredients:r?r.ingredients:[],steps:r?r.steps:log.steps,autolyseEnabled:r?r.autolyseEnabled:true});
+                  }} style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"6px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",marginTop:4}}>
+                    <option value="">— none —</option>
+                    {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </Card>
+              )}
+              {(log.ingredients||[]).filter(i=>parseFloat(i.grams)).length>0&&<>
+              <SecH>Ingredients</SecH>
+              <Card>
+                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                  {(log.ingredients||[]).filter(i=>parseFloat(i.grams)).map(i=>{
+                    const fl=i.flourId?FLOUR_DB.find(f=>f.id===i.flourId):null;
+                    const flourG=(log.ingredients||[]).filter(x=>x.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
+                    return <div key={i.id}>
+                      <Lbl>{fl?fl.name:i.label}</Lbl>
+                      <div style={{fontSize:18,fontWeight:800}}>{i.grams}g</div>
+                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:12,fontWeight:700,color:"#5C5C5C"}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
+                    </div>;
+                  })}
+                </div>
+              </Card>
+              </>}
+
+              <SecH>Step Notes</SecH>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {(log.steps||[]).filter(s=>log.autolyseEnabled!==false||s.id!=="autolyse").map((s,i)=>(
+                  <Card key={s.id}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                      <div style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                      <span style={{fontSize:14,fontWeight:700,color:"#283618"}}>{s.name}</span>
+                    </div>
+                    <textarea
+                      placeholder={`Notes for ${s.name}…`}
+                      value={log.stepNotes?.[i]||""}
+                      onChange={e=>updateStepNote(i,e.target.value)}
+                      rows={2}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit"}}/>
+                    {log.stepPhotos?.[i]?.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                      {log.stepPhotos[i].map((ph,pi)=><img key={pi} src={ph.src} alt="" style={{height:72,width:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>)}
+                    </div>}
+                  </Card>
+                ))}
+              </div>
+
+              <SecH>Session Notes</SecH>
+              <Card>
+                <textarea
+                  placeholder="Crumb, environment, what to tweak…"
+                  value={log.sessionNotes||""}
+                  onChange={e=>updateLog({sessionNotes:e.target.value})}
+                  rows={5}
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:15,color:"#283618",resize:"vertical",lineHeight:1.7,outline:"none",fontFamily:"inherit"}}/>
+              </Card>
+
+
+              <SecH>Bake Review</SecH>
+              <Card>
+                {[
+                  {key:"crumb",    label:"Crumb",       placeholder:"Open, even, dense, gummy…"},
+                  {key:"crust",    label:"Crust",        placeholder:"Thick, thin, crackly, soft…"},
+                  {key:"colour",   label:"Colour",       placeholder:"Golden, pale, deep brown…"},
+                  {key:"ear",      label:"Ear & Bloom",  placeholder:"Good spring, minimal bloom…"},
+                  {key:"flavour",  label:"Flavour",      placeholder:"Sour, mild, nutty, complex…"},
+                  {key:"texture",  label:"Texture",      placeholder:"Chewy, soft, moist, dry…"},
+                  {key:"overall",  label:"Overall",      placeholder:"What worked, what to change…"},
+                ].map(({key,label,placeholder})=>(
+                  <div key={key} style={{marginBottom:14}}>
+                    <Lbl>{label}</Lbl>
+                    <textarea placeholder={placeholder} rows={1}
+                      value={log.review?.[key]||""}
+                      onChange={e=>updateLog({review:{...(log.review||{}),[key]:e.target.value}})}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit"}}/>
                   </div>
-                  {stepNotes[i]&&<p style={{fontSize:14,color:"#606c38",lineHeight:1.65,marginBottom:stepPhotos[i]?.length?12:0}}>{stepNotes[i]}</p>}
-                  {stepPhotos[i]?.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{stepPhotos[i].map((ph,pi)=><img key={pi} src={ph.src} alt="" style={{height:80,width:80,objectFit:"cover",borderRadius:14,border:"1px solid #E0DED8"}}/>)}</div>}
-                </Card>;
+                ))}
+                {/* Photos */}
+                <div style={{marginBottom:14}}>
+                  <Lbl>Photos</Lbl>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+                    {(log.review?.photos||[]).map((src,pi)=>(
+                      <div key={pi} style={{position:"relative"}}>
+                        <img src={src} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>
+                        <button onClick={()=>updateLog({review:{...(log.review||{}),photos:(log.review?.photos||[]).filter((_,i)=>i!==pi)}})}
+                          style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>
+                    ))}
+                    <button onClick={()=>{
+                      setReviewPhotoHandler(()=>src=>updateLog({review:{...(log.review||{}),photos:[...(log.review?.photos||[]),src]}}));
+                      fileRef.current?.click();
+                    }} style={{width:72,height:72,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                  </div>
+                </div>
+                {/* Rating */}
+                <div style={{marginTop:4}}>
+                  <Lbl>Rating</Lbl>
+                  <div style={{display:"flex",gap:8,marginTop:6}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>updateLog({review:{...(log.review||{}),rating:n}})}
+                        style={{width:40,height:40,borderRadius:10,background:(log.review?.rating||0)>=n?"#283618":"#EFEFED",color:(log.review?.rating||0)>=n?"#FFFFFF":"#6E6E6E",fontSize:14,fontWeight:800,border:"none"}}>
+                        {n}
+                      </button>
+                    ))}
+                    {log.review?.rating&&<span style={{fontSize:13,color:"#606c38",alignSelf:"center",marginLeft:4}}>{["","Poor","Fair","Good","Great","Perfect!"][log.review.rating]}</span>}
+                  </div>
+                </div>
+              </Card>
+
+              <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
+                style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:700,width:"100%"}}>Delete this log</button>
+            </>;
+          })() : <>
+
+          {/* ── Log list + active session ────────────── */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:4}}>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em"}}>Bake Log</div>
+            <button onClick={()=>{
+              const id=uid();
+              const blank={
+                id, recipeName:"", startTime:Date.now(), endTime:Date.now(),
+                stepNotes:{}, stepPhotos:{}, foldNotes:{}, foldPhotos:{},
+                sessionNotes:"", autolyseEnabled:true,
+                ingredients:[], steps:DEFAULT_STEPS.map((s,i)=>({...s,durationMin:s.duration,color:STEP_COLORS[i]})),
+                review:{}, isManual:true,
+              };
+              setSavedLogs(prev=>[blank,...prev]);
+              saveBakeLog(blank);
+              setViewingLog(id);
+            }} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>+ Add past bake</button>
+          </div>
+          <div style={{fontSize:14,color:"#606c38",marginBottom:20}}>{savedLogs.length} session{savedLogs.length!==1?"s":""} recorded</div>
+
+          {/* Active session */}
+          {bakeStarted&&bakeRecipe&&<>
+            <div style={{background:"#283618",borderRadius:16,padding:"14px 16px",marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Active session</div>
+              <div style={{fontSize:16,fontWeight:800,color:"#FFFFFF",marginBottom:4}}>{bakeRecipe.name}</div>
+              {(()=>{
+                  const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
+                  const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
+                  const estNow=new Date();
+                  const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
+                  const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
+                  return <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",marginBottom:12}}>
+                    Started {timeStr(bakeStartTime)}{estStr&&<> · Est. finish <strong style={{color:"#FFFFFF"}}>{estStr}</strong></>}
+                  </div>;
+                })()}
+
+              <SecH style={{color:"rgba(255,255,255,0.5)"}}>Step Notes</SecH>
+              {bakeRecipe.steps.some((_,i)=>stepNotes[i]||stepPhotos[i]?.length)?(
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+                  {bakeRecipe.steps.map((s,i)=>{
+                    if(!stepNotes[i]&&!stepPhotos[i]?.length)return null;
+                    return <div key={s.id} style={{background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"10px 12px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                        <div style={{width:7,height:7,borderRadius:"50%",background:s.color}}/>
+                        <span style={{fontSize:13,fontWeight:700,color:"#FFFFFF"}}>{s.name}</span>
+                      </div>
+                      {stepNotes[i]&&<p style={{fontSize:13,color:"rgba(255,255,255,0.7)",lineHeight:1.5}}>{stepNotes[i]}</p>}
+                      {stepPhotos[i]?.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>{stepPhotos[i].map((ph,pi)=><img key={pi} src={ph.src} alt="" style={{height:60,width:60,objectFit:"cover",borderRadius:10}}/>)}</div>}
+                    </div>;
+                  })}
+                </div>
+              ):<p style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:12}}>No step notes yet.</p>}
+
+              <textarea value={sessionNotes} onChange={e=>setSessionNotes(e.target.value)} placeholder="Session notes…" rows={3}
+                style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"none",borderRadius:10,padding:"10px 12px",fontSize:14,color:"#FFFFFF",resize:"vertical",outline:"none",fontFamily:"inherit",marginBottom:12}}/>
+
+              <button onClick={finishBake}
+                style={{width:"100%",padding:"11px",borderRadius:12,background:"#FFFFFF",color:"#283618",fontSize:14,fontWeight:800}}>Finish & Save Bake</button>
+            </div>
+          </>}
+
+          {/* Past logs */}
+          {savedLogs.length>0 ? (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {savedLogs.map(log=>{
+                const dMin = log.endTime&&log.startTime ? Math.round((log.endTime-log.startTime)/60000) : null;
+                return <button key={log.id} onClick={()=>setViewingLog(log.id)}
+                  style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700,color:"#283618"}}>{log.recipeName}</div>
+                    <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
+                      {new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
+                      {dMin?` · ${Math.floor(dMin/60)}h ${dMin%60}m`:""}
+                    </div>
+                    {log.sessionNotes&&<div style={{fontSize:12,color:"#606c38",marginTop:3,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.sessionNotes}</div>}
+                  </div>
+                  <div style={{fontSize:13,color:"#6E6E6E",flexShrink:0,marginLeft:12}}>→</div>
+                </button>;
               })}
             </div>
-          ):<Card><p style={{fontSize:14,color:"#9A9A90",textAlign:"center",padding:"8px 0"}}>Notes appear here as you bake.</p></Card>}
-
-          <SecH>Session Notes</SecH>
-          <Card>
-            <textarea value={sessionNotes} onChange={e=>setSessionNotes(e.target.value)} placeholder="Crumb, environment, what to tweak…" rows={5}
-              style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:15,color:"#283618",resize:"vertical",lineHeight:1.7,outline:"none",fontFamily:"inherit"}}/>
-          </Card>
+          ):(
+            <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>Finish a bake to save it here.</p></Card>
+          )}
+          </>}
         </div>}
 
         {/* ══════════════════════════════
             INGREDIENTS
         ══════════════════════════════ */}
         {view===VIEWS.INGREDIENTS && <div className="su">
-          <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em",marginBottom:2}}>Ingredients</div>
-          <div style={{fontSize:14,color:"#606c38",marginBottom:18}}>Australian flour database · {FLOUR_DB.length} flours</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:2}}>
+            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em"}}>Ingredients</div>
+            <button onClick={()=>setShowAddFlour(v=>!v)} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>+ Add</button>
+          </div>
+          <div style={{fontSize:14,color:"#606c38",marginBottom:18}}>Australian flour database · {allFlours.length} flours{userFlours.length>0?` · ${userFlours.length} custom`:""}</div>
+
+          {/* Add flour form */}
+          {showAddFlour && <Card style={{marginBottom:16}}>
+            <div style={{fontSize:15,fontWeight:800,marginBottom:14}}>Add custom flour</div>
+            {[
+              {label:"Name",key:"name",placeholder:"e.g. Heritage White"},
+              {label:"Brand",key:"brand",placeholder:"e.g. Local Mill"},
+              {label:"Type",key:"type",placeholder:"e.g. White Bread, Wholemeal…"},
+              {label:"Protein (g per 100g)",key:"protein",placeholder:"e.g. 12.5",type:"number"},
+              {label:"Where to buy",key:"where",placeholder:"e.g. Local health food store"},
+              {label:"Description",key:"description",placeholder:"Flavour, behaviour, best uses…"},
+              {label:"Baking tips",key:"tips",placeholder:"Hydration, fermentation notes…"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:12}}>
+                <Lbl>{f.label}</Lbl>
+                <input type={f.type||"text"} value={newFlour[f.key]} placeholder={f.placeholder}
+                  onChange={e=>setNewFlour(p=>({...p,[f.key]:e.target.value}))}
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"5px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit"}}/>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:10,marginTop:6}}>
+              <button onClick={()=>{
+                if(!newFlour.name.trim()) return;
+                const entry = {
+                  id:"u"+uid(), ...newFlour,
+                  protein: parseFloat(newFlour.protein)||0,
+                  energy:0,fat:0,carbs:0,fibre:0,sodium:0,
+                  sizes:["custom"], sourdoughRating:0, colour:"#E0DED8",
+                  isCustom:true,
+                };
+                setUserFlours(p=>[...p,entry]);
+                setNewFlour({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
+                setShowAddFlour(false);
+              }} style={{flex:1,padding:"11px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:700}}>Save Flour</button>
+              <button onClick={()=>setShowAddFlour(false)} style={{padding:"11px 16px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:14,fontWeight:600}}>Cancel</button>
+            </div>
+          </Card>}
 
           {/* Search */}
           <input value={flourSearch} onChange={e=>setFlourSearch(e.target.value)} placeholder="Search flour or brand…"
@@ -946,7 +1500,9 @@ export default function App() {
                   <p style={{fontSize:13,color:"#606c38",lineHeight:1.65}}>{f.tips}</p>
                 </div></>}
 
-                <div style={{fontSize:11,color:"#E0DED8",marginTop:12}}>Sodium: {f.sodium}mg · {f.where}</div>
+                {!f.isCustom&&<div style={{fontSize:11,color:"#E0DED8",marginTop:12}}>Sodium: {f.sodium}mg · {f.where}</div>}
+                {f.isCustom&&<button onClick={e=>{e.stopPropagation();setUserFlours(p=>p.filter(x=>x.id!==f.id));setExpandedFlour(null);}}
+                  style={{marginTop:14,padding:"8px 14px",borderRadius:10,background:"#FFF0F0",color:"#9E3A3A",fontSize:12,fontWeight:700}}>Delete</button>}
               </div>}
             </Card>;
           })}
@@ -960,4 +1516,3 @@ export default function App() {
     </>
   );
 }
-
