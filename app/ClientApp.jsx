@@ -602,30 +602,28 @@ export default function App() {
       `}</style>
 
       {/* TOP NAV — logo + safe area top */}
-      <nav style={{background:"#283618",position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top)",borderBottom:"0.5px solid rgba(255,255,255,0.08)"}}>
-        <div style={{height:52,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.RECIPES);}}>
-          <div style={{display:"flex",alignItems:"center",gap:9}}>
-            <div style={{width:30,height:30,borderRadius:9,border:"2px solid rgba(255,255,255,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <span style={{fontSize:16,fontWeight:700,color:"#FFFFFF",lineHeight:1,fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.03em"}}>B</span>
+      <nav style={{background:"#283618",position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top)",borderBottom:"0.5px solid rgba(255,255,255,0.1)"}}>
+        <div style={{height:54,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.RECIPES);}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,0.15)",border:"1.5px solid rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontSize:17,fontWeight:800,color:"#FFFFFF",lineHeight:1,fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.04em"}}>B</span>
             </div>
-            <span style={{fontWeight:600,fontSize:18,letterSpacing:"-0.03em",color:"#FFFFFF"}}>Bake it</span>
+            <span style={{fontWeight:700,fontSize:19,letterSpacing:"-0.04em",color:"#FFFFFF"}}>Bake it</span>
           </div>
         </div>
       </nav>
 
       {/* BOTTOM TAB BAR */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618"}}>
-        <div style={{display:"flex",alignItems:"stretch",height:60,padding:"0 12px"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",borderTop:"0.5px solid rgba(255,255,255,0.1)"}}>
+        <div style={{display:"flex",alignItems:"stretch",height:64,padding:"0 8px"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,background:"none",border:"none",padding:"8px 2px 8px",minWidth:0}}>
-              <div style={{width:28,height:28,borderRadius:14,background:active?"rgba(255,255,255,0.15)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                <div style={{width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.45)",flexShrink:0}}>
-                  {icon}
-                </div>
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,background:active?"rgba(255,255,255,0.15)":"none",border:"none",padding:"6px 4px 8px",minWidth:0,cursor:"pointer",borderRadius:0,margin:0,transition:"background 0.15s"}}>
+              <div style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.5)",flexShrink:0}}>
+                {icon}
               </div>
-              <span style={{fontSize:10,fontWeight:active?600:400,color:active?"#FFFFFF":"rgba(255,255,255,0.45)",letterSpacing:"0.01em",whiteSpace:"nowrap",lineHeight:1.2}}>{l}</span>
+              <span style={{fontSize:10.5,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.5)",letterSpacing:"0.02em",whiteSpace:"nowrap",lineHeight:1}}>{l}</span>
             </button>;
           })}
         </div>
