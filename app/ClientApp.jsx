@@ -466,20 +466,39 @@ export default function App() {
   const toggleSF = (si,n) => setSfDone(prev=>{ const s=new Set(prev[si]||[]); s.has(n)?s.delete(n):s.add(n); return{...prev,[si]:s}; });
   const handlePhoto = e => {
     const file=e.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
+    e.target.value="";
+    // Compress before storing — resize to max 1200px, JPEG 0.75
+    const compressImage = (f) => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if(w > MAX || h > MAX) {
+            if(w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else       { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    compressImage(file).then(src => {
       if(reviewPhotoHandler){
-        reviewPhotoHandler(ev.target.result);
+        reviewPhotoHandler(src);
         setReviewPhotoHandler(null);
       } else if(foldPhotoTarget!=null){
-        setFoldPhotos(p=>({...p,[foldPhotoTarget]:ev.target.result}));
+        setFoldPhotos(p=>({...p,[foldPhotoTarget]:src}));
         setFoldPhotoTarget(null);
       } else if(photoTarget!=null){
-        setStepPhotos(p=>({...p,[photoTarget]:[...(p[photoTarget]||[]),{src:ev.target.result,ts:Date.now()}]}));
+        setStepPhotos(p=>({...p,[photoTarget]:[...(p[photoTarget]||[]),{src,ts:Date.now()}]}));
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value="";
+    });
   };
 
 
