@@ -268,7 +268,12 @@ const makeRecipe = () => ({
    MAIN APP
 ════════════════════════════════════════════════════ */
 export default function App() {
-  const [view,setView]             = useState(VIEWS.HOME);
+  const [view,setView]             = useState(()=>{
+    try {
+      const saved = localStorage.getItem('bakeIt_view');
+      return (saved && Object.values(VIEWS).includes(saved)) ? saved : VIEWS.RECIPES;
+    } catch { return VIEWS.RECIPES; }
+  });
   const [recipes,setRecipes] = useState([]);
   const [editId,setEditId]         = useState(null);
   const [selectedId,setSelectedId] = useState(null);
@@ -542,6 +547,9 @@ export default function App() {
   };
 
   // recipe helpers
+  // Persist last view
+  useEffect(()=>{ try { localStorage.setItem('bakeIt_view', view); } catch {} }, [view]);
+
   const upd  = (id,fn) => setRecipes(rs=>{ const next=rs.map(r=>r.id===id?fn(r):r); const changed=next.find(r=>r.id===id); if(changed) scheduleRecipeSave(changed); return next; });
   const updE = fn => editId && upd(editId,fn);
   const addRecipe = () => { const r=makeRecipe(); setRecipes(rs=>[...rs,r]); saveRecipe(r); setEditId(r.id); setView(VIEWS.RECIPES); };
@@ -556,11 +564,10 @@ export default function App() {
   });
 
   const TABS = [
-    {v:VIEWS.HOME,       l:"Home",    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>},
     {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>},
-    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>},
+    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 C8 6 8 10 8 10 C6 9 7 7 7 7 C4 10 4 14 4 14 C4 18.4 7.6 22 12 22 C16.4 22 20 18.4 20 14 C20 8 14 5 12 2Z"/></svg>},
     {v:VIEWS.LOG,        l:"Log",     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
-    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22V12"/><path d="M12 12C12 12 7 9 7 5a5 5 0 0 1 10 0c0 4-5 7-5 7z"/><path d="M12 12c0 0-2-4 1-7"/><path d="M12 12c0 0 2-4-1-7"/></svg>},
+    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
   ];
 
   return (
@@ -589,11 +596,12 @@ export default function App() {
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
         .su{animation:su 0.3s cubic-bezier(0.2,0,0,1) forwards}
         .pulse{animation:pulse 1.8s ease-in-out infinite}
+        .bottom-nav{padding-bottom:env(safe-area-inset-bottom,0px)}
       `}</style>
 
       {/* TOP NAV — logo + safe area top */}
       <nav style={{background:"#283618",position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top)",borderBottom:"0.5px solid rgba(255,255,255,0.08)"}}>
-        <div style={{height:52,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.HOME);}}>
+        <div style={{height:52,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.RECIPES);}}>
           <div style={{display:"flex",alignItems:"center",gap:9}}>
             <div style={{width:30,height:30,borderRadius:9,border:"2px solid rgba(255,255,255,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <span style={{fontSize:16,fontWeight:700,color:"#FFFFFF",lineHeight:1,fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.03em"}}>B</span>
@@ -604,7 +612,7 @@ export default function App() {
       </nav>
 
       {/* BOTTOM TAB BAR */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",paddingBottom:"env(safe-area-inset-bottom)"}}>
+      <div className="bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618"}}>
         <div style={{display:"flex",alignItems:"stretch",height:60,padding:"0 12px"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
@@ -621,8 +629,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px calc(80px + env(safe-area-inset-bottom))"}}>
-
+      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px calc(60px + env(safe-area-inset-bottom, 34px) + 16px)"}}>
 
         {/* ══════════════════════════════
             HOME / DASHBOARD
@@ -695,20 +702,6 @@ export default function App() {
               ))}
             </div>
           </>}
-
-          {/* Quick stats row */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            {[
-              {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
-              {label:"Bakes",value:savedLogs.length,action:()=>setView(VIEWS.LOG)},
-              {label:"Flours",value:allFlours.length,action:()=>setView(VIEWS.INGREDIENTS)},
-            ].map(({label,value,action})=>(
-              <button key={label} onClick={action} style={{background:"#FFFFFF",borderRadius:14,padding:"14px 10px",border:"1px solid #E0DED8",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <div style={{fontSize:22,fontWeight:700,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
-                <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>{label}</div>
-              </button>
-            ))}
-          </div>
 
         </div>}
 
@@ -1325,6 +1318,20 @@ export default function App() {
                 style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
             </>;
           })() : <>
+
+          {/* Stats row */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:24}}>
+            {[
+              {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
+              {label:"Bakes",value:savedLogs.length,action:null},
+              {label:"Flours",value:allFlours.length,action:()=>setView(VIEWS.INGREDIENTS)},
+            ].map(({label,value,action})=>(
+              <button key={label} onClick={action||undefined} style={{background:"#FFFFFF",borderRadius:14,padding:"14px 10px",border:"1px solid #E0DED8",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{fontSize:22,fontWeight:700,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
+                <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>{label}</div>
+              </button>
+            ))}
+          </div>
 
           {/* ── Log list + active session ────────────── */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:4}}>
