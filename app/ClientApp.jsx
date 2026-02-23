@@ -625,7 +625,7 @@ export default function App() {
 
       {/* BOTTOM TAB BAR */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",borderTop:"0.5px solid rgba(255,255,255,0.1)"}}>
-        <div style={{display:"flex",alignItems:"stretch",height:64,padding:"2px 8px 0"}}>
+        <div style={{display:"flex",alignItems:"stretch",height:61,padding:"5px 8px 0"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
