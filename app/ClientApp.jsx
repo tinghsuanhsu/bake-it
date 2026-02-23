@@ -583,10 +583,10 @@ export default function App() {
   });
 
   const TABS = [
-    {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>},
-    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/><path d="M12 22c0 0-2-2-2-4s2-3 2-3 2 1 2 3-2 4-2 4z" strokeWidth="1.5" strokeOpacity="0.6"/></svg>},
-    {v:VIEWS.LOG,        l:"Log",     icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
-    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
+    {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>},
+    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/><path d="M12 22c0 0-2-2-2-4s2-3 2-3 2 1 2 3-2 4-2 4z" strokeWidth="1.5" strokeOpacity="0.6"/></svg>},
+    {v:VIEWS.LOG,        l:"Log",     icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
+    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
   ];
 
   return (
@@ -620,14 +620,7 @@ export default function App() {
 
       {/* TOP NAV — logo + safe area top */}
       <nav style={{background:"#283618",position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top)",borderBottom:"0.5px solid rgba(255,255,255,0.1)"}}>
-        <div style={{height:54,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.RECIPES);}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:32,height:32,borderRadius:10,background:"rgba(255,255,255,0.15)",border:"1.5px solid rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <span style={{fontSize:17,fontWeight:800,color:"#FFFFFF",lineHeight:1,fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.04em"}}>B</span>
-            </div>
-            <span style={{fontWeight:700,fontSize:19,letterSpacing:"-0.04em",color:"#FFFFFF"}}>Bake it</span>
-          </div>
-        </div>
+        <div style={{height:36}}></div>
       </nav>
 
       {/* BOTTOM TAB BAR */}
@@ -637,10 +630,10 @@ export default function App() {
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,background:"none",border:"none",padding:"6px 4px 8px",minWidth:0,cursor:"pointer"}}>
-              <div style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.5)",flexShrink:0}}>
+              <div style={{width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.5)",flexShrink:0}}>
                 {icon}
               </div>
-              <span style={{fontSize:10.5,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.5)",letterSpacing:"0.02em",whiteSpace:"nowrap",lineHeight:1}}>{l}</span>
+              <span style={{fontSize:11.5,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.5)",letterSpacing:"0.02em",whiteSpace:"nowrap",lineHeight:1}}>{l}</span>
             </button>;
           })}
         </div>
