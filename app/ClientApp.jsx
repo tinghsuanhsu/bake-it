@@ -992,9 +992,6 @@ export default function App() {
         {view===VIEWS.BAKE && <div className="su">
           {!bakeStarted||!bakeRecipe ? (
             <div style={{textAlign:"center",paddingTop:60}}>
-              <div style={{width:64,height:64,borderRadius:20,border:"1.5px solid #2C2C2E",margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:28,fontWeight:700,color:"#E0DED8"}}>B</span>
-              </div>
               <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>No active bake</div>
               <p style={{color:"#606c38",fontSize:15,marginBottom:28,lineHeight:1.5}}>Choose a recipe and tap Bake to start.</p>
               {recipes.length>0 && <div style={{display:"flex",flexDirection:"column",gap:8}}>
