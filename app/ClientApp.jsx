@@ -596,7 +596,7 @@ export default function App() {
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
         .su{animation:su 0.3s cubic-bezier(0.2,0,0,1) forwards}
         .pulse{animation:pulse 1.8s ease-in-out infinite}
-        .bottom-nav{padding-bottom:env(safe-area-inset-bottom,0px)}
+
       `}</style>
 
       {/* TOP NAV — logo + safe area top */}
@@ -612,7 +612,7 @@ export default function App() {
       </nav>
 
       {/* BOTTOM TAB BAR */}
-      <div className="bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618"}}>
         <div style={{display:"flex",alignItems:"stretch",height:60,padding:"0 12px"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
@@ -627,9 +627,11 @@ export default function App() {
             </button>;
           })}
         </div>
+        {/* Safe area spacer — sits below the tab row, fills home indicator zone */}
+        <div style={{height:"env(safe-area-inset-bottom,20px)",minHeight:20,background:"#283618"}}/>
       </div>
 
-      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px calc(60px + env(safe-area-inset-bottom, 34px) + 16px)"}}>
+      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px calc(60px + max(env(safe-area-inset-bottom,0px),16px) + 16px)"}}>
 
         {/* ══════════════════════════════
             HOME / DASHBOARD
