@@ -201,12 +201,14 @@ const FLOUR_DB = [
 ];
 
 /* ─── STEP SETUP ─────────────────────────────────── */
-const STEP_COLORS = ["#5C5C5C","#606c38","#8A8A8A","#283618","#787878","#4A6628","#A0A0A0","#7A8A48"];
+const STEP_COLORS = ["#3A7A58","#5E9E6A","#5C5C5C","#606c38","#8A8A8A","#283618","#787878","#4A6628","#A0A0A0","#7A8A48"];
 const DEFAULT_STEPS = [
-  { id:"autolyse",   name:"Autolyse",      duration:30  },
-  { id:"levain_mix", name:"Levain + Mix",  duration:20  },
+  { id:"starter_peak", name:"Starter Peak",  duration:480 },
+  { id:"make_levain",  name:"Make Levain",   duration:20  },
+  { id:"autolyse",     name:"Autolyse",      duration:30  },
+  { id:"levain_mix",   name:"Levain + Mix",  duration:20  },
   { id:"bulk",       name:"Bulk Ferment",  duration:240, sfCount:5 },
-  { id:"divide",     name:"Divide & Rest", duration:30  },
+  { id:"divide",     name:"Divide & Pre-shape", duration:30  },
   { id:"shape",      name:"Pre-shape",     duration:15  },
   { id:"proof",      name:"Shape",         duration:60  },
   { id:"retard",     name:"Retard",        duration:720 },
@@ -564,10 +566,10 @@ export default function App() {
   });
 
   const TABS = [
-    {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>},
-    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 C8 6 8 10 8 10 C6 9 7 7 7 7 C4 10 4 14 4 14 C4 18.4 7.6 22 12 22 C16.4 22 20 18.4 20 14 C20 8 14 5 12 2Z"/></svg>},
-    {v:VIEWS.LOG,        l:"Log",     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
-    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
+    {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>},
+    {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/><path d="M12 22c0 0-2-2-2-4s2-3 2-3 2 1 2 3-2 4-2 4z" strokeWidth="1.5" strokeOpacity="0.6"/></svg>},
+    {v:VIEWS.LOG,        l:"Log",     icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
+    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
   ];
 
   return (
@@ -840,32 +842,41 @@ export default function App() {
                           <div>
                             <select value={ing.flourId||""}
                               onChange={e=>{
-                                if(e.target.value==="__manual__"){
+                                const v=e.target.value;
+                                if(v==="__manual__"){
                                   updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,manual:true,flourId:"",label:""}:i)}));
+                                } else if(v.startsWith("__gen_")){
+                                  const genNames={"__gen_hipro__":"High Protein White Flour","__gen_white__":"White Flour","__gen_wholemeal__":"Wholemeal Flour","__gen_spelt__":"Spelt Flour","__gen_rye__":"Rye Flour","__gen_einkorn__":"Einkorn Flour","__gen_emmer__":"Emmer Flour","__gen_khorasan__":"Khorasan (Kamut) Flour"};
+                                  updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,flourId:v,label:genNames[v]||"Flour",protein:i.protein||""}:i)}));
                                 } else {
-                                  const f=FLOUR_DB.find(fl=>fl.id===e.target.value);
-                                  updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,flourId:e.target.value,label:f?f.name:i.label}:i)}));
+                                  const f=FLOUR_DB.find(fl=>fl.id===v);
+                                  updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,flourId:v,label:f?f.name:i.label,protein:""}:i)}));
                                 }
                               }}
                               style={{background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"5px 2px",fontSize:14,fontWeight:600,color:flour?"#283618":"#606c38",outline:"none",width:"100%",cursor:"pointer",appearance:"auto"}}>
                               <option value="">Select flour…</option>
-                              <optgroup label="─── White Bread">
-                                {FLOUR_DB.filter(f=>f.type==="White Bread"||f.type==="White Bread (T55)"||f.type==="Organic White Bread"||f.type==="Organic Stoneground White"||f.type==="Stoneground Heritage White"||f.type==="High-Protein White Bread"||f.type==="Professional White Bread"||f.type==="Supermarket Bread Flour").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g protein)</option>)}
+                              <optgroup label="─── General">
+                                <option value="__gen_hipro__">High Protein White Flour</option>
+                                <option value="__gen_white__">White Flour</option>
+                                <option value="__gen_wholemeal__">Wholemeal Flour</option>
+                                <option value="__gen_spelt__">Spelt Flour</option>
+                                <option value="__gen_rye__">Rye Flour</option>
+                                <option value="__gen_einkorn__">Einkorn Flour</option>
+                                <option value="__gen_emmer__">Emmer Flour</option>
+                                <option value="__gen_khorasan__">Khorasan (Kamut) Flour</option>
                               </optgroup>
-                              <optgroup label="─── Wholemeal">
-                                {FLOUR_DB.filter(f=>f.type==="Wholemeal Bread"||f.type==="Wholemeal").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g protein)</option>)}
-                              </optgroup>
-                              <optgroup label="─── Rye">
-                                {FLOUR_DB.filter(f=>f.type==="Rye"||f.type==="Whole Rye"||f.type==="Light Rye").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g protein)</option>)}
-                              </optgroup>
-                              <optgroup label="─── Spelt">
-                                {FLOUR_DB.filter(f=>f.type==="Spelt").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g protein)</option>)}
+                              <optgroup label="─── Specific Brand">
+                                {FLOUR_DB.filter(f=>f.type==="White Bread"||f.type==="White Bread (T55)"||f.type==="Organic White Bread"||f.type==="Organic Stoneground White"||f.type==="Stoneground Heritage White"||f.type==="High-Protein White Bread"||f.type==="Professional White Bread"||f.type==="Supermarket Bread Flour").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g)</option>)}
+                                {FLOUR_DB.filter(f=>f.type==="Wholemeal Bread"||f.type==="Wholemeal").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g)</option>)}
+                                {FLOUR_DB.filter(f=>f.type==="Rye"||f.type==="Whole Rye"||f.type==="Light Rye").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g)</option>)}
+                                {FLOUR_DB.filter(f=>f.type==="Spelt").map(f=><option key={f.id} value={f.id}>{f.brand} — {f.name} ({f.protein}g)</option>)}
                               </optgroup>
                               <optgroup label="───">
                                 <option value="__manual__">Not in list — enter manually…</option>
                               </optgroup>
                             </select>
                             {flour && <div style={{fontSize:11,color:"#606c38",marginTop:2,fontWeight:600}}>{flour.type} · {flour.protein}g protein/100g</div>}
+                            {ing.flourId&&ing.flourId.startsWith("__gen_")&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}><span style={{fontSize:11,color:"#606c38",fontWeight:600}}>Protein (g/100g):</span><input type="number" inputMode="decimal" value={ing.protein||""} onChange={e=>updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,protein:e.target.value}:i)}))} placeholder="e.g. 13" style={{width:60,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"2px 4px",fontSize:13,fontWeight:600,color:"#283618",outline:"none",textAlign:"center"}}/></div>}
                           </div>
                         )}
                       </div>
@@ -925,8 +936,10 @@ export default function App() {
                     /* Retard: overnight on/off + hr input when off */
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       {unit!=="overnight" && <>
-                        <input type="number" value={displayVal} min={1} step={1}
-                          onChange={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:m}:st)}));}}
+                        <input type="text" inputMode="numeric" value={displayVal}
+                          onFocus={e=>e.target.select()}
+                          onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
+                          onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
                           style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
                         <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                           {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
@@ -942,8 +955,10 @@ export default function App() {
                     </div>
                   ) : (
                     <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <input type="number" value={displayVal} min={1} step={unit==="hr"?0.5:1}
-                        onChange={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:m}:st)}));}}
+                      <input type="text" inputMode="numeric" value={displayVal}
+                        onFocus={e=>e.target.select()}
+                        onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
+                        onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
                         style={{width:48,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
                       <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                         {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
@@ -1404,9 +1419,9 @@ export default function App() {
                 const DELETE_W = 72;
                 let touchStartX = 0;
                 return (
-                  <div key={log.id} style={{position:"relative",marginBottom:8,borderRadius:14,overflow:"hidden"}}>
+                  <div key={log.id} style={{position:"relative",marginBottom:8,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
                     {/* Delete button revealed underneath */}
-                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"0 14px 14px 0"}}>
+                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <button onClick={()=>{deleteLogDB(log.id);setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));setSwipedLogId(null);}}
                         style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 12px"}}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -1422,7 +1437,7 @@ export default function App() {
                         else if(dx < -20) setSwipedLogId(null);
                       }}
                       onClick={()=>{ if(isOpen){setSwipedLogId(null);} else {setViewingLog(log.id);} }}
-                      style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transform:isOpen?`translateX(-${DELETE_W}px)`:"translateX(0)",transition:"transform 0.22s cubic-bezier(0.2,0,0,1)",position:"relative",zIndex:1}}>
+                      style={{background:"#FFFFFF",borderRadius:0,padding:"14px 16px",border:"1px solid #E0DED8",borderRadius:16,textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transform:isOpen?`translateX(-${DELETE_W}px)`:"translateX(0)",transition:"transform 0.22s cubic-bezier(0.2,0,0,1)",position:"relative",zIndex:1,minWidth:"100%"}}>
                       <div>
                         <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName}</div>
                         <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
