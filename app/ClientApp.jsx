@@ -372,20 +372,39 @@ export default function App() {
         fetch('/api/logs').then(r => r.json()),
       ]))
       .then(([recipeData, logData]) => {
-        console.log('[BakeIt] DB recipes raw:', recipeData);
-        console.log('[BakeIt] DB logs raw:', logData);
+        // Merge DB recipes with any missing starters
         const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
         const dbIds = new Set(dbRecipes.map(r => r.id));
         const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
-        console.log('[BakeIt] DB has', dbRecipes.length, 'recipes, missing starters:', missingStarters.map(r=>r.name));
         missingStarters.forEach(r => saveRecipe(r));
-        const allRecipes = [...dbRecipes, ...missingStarters];
-        setRecipes(allRecipes.length > 0 ? allRecipes : STARTER_RECIPES);
+        const allRecipesLoaded = dbRecipes.length > 0
+          ? [...dbRecipes, ...missingStarters]
+          : STARTER_RECIPES;
+        setRecipes(allRecipesLoaded);
         if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
+        // Restore active bake AFTER recipes are loaded so bakeRecipe resolves
+        try {
+          const saved = localStorage.getItem('bakeIt_activeBake');
+          if (saved) {
+            const b = JSON.parse(saved);
+            const recipeExists = allRecipesLoaded.find(r => r.id === b.selectedId);
+            if (b.bakeStarted && b.selectedId && recipeExists) {
+              setSelectedId(b.selectedId);
+              setBakeStarted(true);
+              setBST(b.bakeStartTime);
+              setActiveStep(b.activeStep);
+              setSST(b.stepStartTimes||{});
+              setStepNotes(b.stepNotes||{});
+              setSessionNotes(b.sessionNotes||'');
+              setFoldNotes(b.foldNotes||{});
+              setSteamDone(b.steamDone||false);
+              setView(VIEWS.BAKE);
+            }
+          }
+        } catch(e) {}
         setDbLoading(false);
       })
       .catch(err => {
-        console.error('[BakeIt] Load error:', err);
         setDbError(err.message);
         setDbLoading(false);
       });
@@ -400,6 +419,24 @@ export default function App() {
   const [showAddFlour,setShowAddFlour]   = useState(false);
   const [newFlour,setNewFlour]           = useState({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
 
+
+  // ── Persist bake state across refresh ───────────────
+  // (Restore happens inside DB load effect, after recipes are available)
+  // Save on every change
+  useEffect(() => {
+    if (!bakeStarted) {
+      localStorage.removeItem('bakeIt_activeBake');
+      return;
+    }
+    try {
+      localStorage.setItem('bakeIt_activeBake', JSON.stringify({
+        bakeStarted, selectedId,
+        bakeStartTime, activeStep,
+        stepStartTimes, stepNotes,
+        sessionNotes, foldNotes, steamDone,
+      }));
+    } catch(e) {}
+  }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone]);
 
   useEffect(()=>{ if(!bakeStarted)return; const id=setInterval(()=>setTick(t=>t+1),1000); return()=>clearInterval(id); },[bakeStarted]);
 
@@ -540,104 +577,111 @@ export default function App() {
       </nav>
 
       {/* BOTTOM TAB BAR */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"rgba(40,54,24,0.97)",backdropFilter:"blur(20px)",borderTop:"0.5px solid rgba(255,255,255,0.1)",display:"flex",paddingBottom:"env(safe-area-inset-bottom)"}}>
-        {TABS.map(({v,l,icon})=>{
-          const active=view===v&&!editId;
-          return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-            style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 4px 8px",background:"none",border:"none",gap:3}}>
-            <div style={{width:5,height:5,borderRadius:"50%",background:active?"#A8C872":"transparent",marginBottom:1,transition:"background 0.2s"}}/>
-            <span style={{fontSize:11,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.45)",letterSpacing:"0.01em",transition:"all 0.2s"}}>{l}</span>
-          </button>;
-        })}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"rgba(28,38,16,0.98)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderTop:"0.5px solid rgba(255,255,255,0.08)"}}>
+        <div style={{display:"flex",paddingTop:8,paddingBottom:8,paddingLeft:4,paddingRight:4}}>
+          {TABS.map(({v,l})=>{
+            const active=view===v&&!editId;
+            return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,padding:"6px 2px",background:"none",border:"none",minHeight:48,position:"relative"}}>
+              {active&&<div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:20,height:2.5,borderRadius:2,background:"#8BC44A"}}/>}
+              <span style={{fontSize:10,fontWeight:active?700:400,color:active?"#FFFFFF":"rgba(255,255,255,0.38)",letterSpacing:"0.04em",textTransform:"uppercase",transition:"all 0.15s"}}>{l}</span>
+            </button>;
+          })}
+        </div>
+        <div style={{height:"env(safe-area-inset-bottom)",background:"transparent"}}/>
       </div>
 
-      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 100px"}}>
+      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 120px"}}>
 
 
         {/* ══════════════════════════════
             HOME / DASHBOARD
         ══════════════════════════════ */}
         {view===VIEWS.HOME && <div className="su">
-          {/* Greeting */}
-          <div style={{marginBottom:24}}>
-            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em",marginBottom:4}}>Good baking</div>
-            <div style={{fontSize:14,color:"#606c38"}}>Your sourdough at a glance</div>
-          </div>
 
-          {/* Stats row */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
-            {[
-              {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
-              {label:"Bakes",value:savedLogs.length,action:()=>setView(VIEWS.LOG)},
-              {label:"Flours",value:21,action:()=>setView(VIEWS.INGREDIENTS)},
-            ].map(s=>(
-              <button key={s.label} onClick={s.action} style={{background:"#FFFFFF",borderRadius:16,padding:"16px 12px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 8px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%"}}>
-                <div style={{fontSize:28,fontWeight:800,letterSpacing:"-0.03em",color:"#283618",lineHeight:1,marginBottom:4}}>{s.value}</div>
-                <div style={{fontSize:11,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.05em"}}>{s.label}</div>
-              </button>
-            ))}
-          </div>
-
-          {/* Active bake banner */}
-          {bakeStarted && bakeRecipe && (
-            <button onClick={()=>setView(VIEWS.BAKE)} style={{width:"100%",background:"#283618",borderRadius:16,padding:"16px 18px",border:"none",textAlign:"left",marginBottom:16,cursor:"pointer"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Active bake</div>
-                  <div style={{fontSize:17,fontWeight:800,color:"#FFFFFF"}}>{bakeRecipe.name}</div>
-                  {(()=>{
-                  const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
-                  const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
-                  const estNow=new Date();
-                  const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
-                  const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
-                  return <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",marginTop:2}}>
-                    Started {timeStr(bakeStartTime)}{estStr&&<> · Est. finish <strong style={{color:"#FFFFFF"}}>{estStr}</strong></>}
-                  </div>;
-                })()}
-                </div>
-                <div style={{fontSize:22,color:"rgba(255,255,255,0.8)"}}>→</div>
+          {/* Active Bake Banner — full bleed, most prominent */}
+          {bakeStarted&&bakeRecipe&&(()=>{
+            const activeSteps=bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse");
+            const totalStepMin=activeSteps.reduce((a,s)=>a+s.durationMin,0);
+            const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
+            const estNow=new Date();
+            const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate());
+            const estStr=estFinish?(isTomorrow?"Tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
+            const curStep=activeStep!=null&&activeStep<activeSteps.length?activeSteps[activeStep]:null;
+            return <div onClick={()=>setView(VIEWS.BAKE)}
+              style={{background:"#283618",borderRadius:20,padding:"20px",marginBottom:20,cursor:"pointer",position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",top:0,right:0,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.04)",transform:"translate(30px,-30px)"}}/>
+              <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>Bake in progress</div>
+              <div style={{fontSize:22,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.02em",marginBottom:4}}>{bakeRecipe.name}</div>
+              {curStep&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:curStep.color,flexShrink:0}}/>
+                <span style={{fontSize:14,color:"rgba(255,255,255,0.7)",fontWeight:500}}>{curStep.name}</span>
+              </div>}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                {estStr&&<div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:1}}>Est. finish</div>
+                  <div style={{fontSize:16,fontWeight:700,color:"#8BC44A"}}>{estStr}</div>
+                </div>}
+                <div style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,color:"#FFFFFF"}}>Continue →</div>
               </div>
-            </button>
-          )}
+            </div>;
+          })()}
 
-          {/* Quick actions */}
-          <SecH>Quick Actions</SecH>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-            {[
-              {label:"Recipes",sub:`${recipes.length} saved`,action:()=>setView(VIEWS.RECIPES)},
-              {label:"New Recipe",sub:"Start from scratch",action:addRecipe},
-              {label:"Flour Database",sub:"21 Australian flours",action:()=>setView(VIEWS.INGREDIENTS)},
-              {label:"Bake Log",sub:`${savedLogs.length} session${savedLogs.length!==1?"s":""}`,action:()=>setView(VIEWS.LOG)},
-            ].map(a=>(
-              <button key={a.label} onClick={a.action} style={{background:"#FFFFFF",borderRadius:16,padding:"16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 8px rgba(0,0,0,0.05)",cursor:"pointer"}}>
-                <div style={{fontSize:14,fontWeight:700,color:"#283618",marginBottom:2}}>{a.label}</div>
-                <div style={{fontSize:12,color:"#6E6E6E"}}>{a.sub}</div>
-              </button>
-            ))}
+          {/* Section: Your Recipes */}
+          <div style={{marginBottom:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recipes</div>
+            <button onClick={()=>setView(VIEWS.RECIPES)} style={{fontSize:12,fontWeight:600,color:"#606c38",background:"none",border:"none",padding:"4px 0"}}>See all →</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
+            {recipes.slice(0,3).map(r=>{
+              const totalMin=(r.autolyseEnabled?r.steps:r.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
+              return <div key={r.id} style={{background:"#FFFFFF",borderRadius:16,padding:"14px 16px",border:"1px solid #E0DED8",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 1px 6px rgba(0,0,0,0.04)"}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:"#283618",marginBottom:3}}>{r.name}</div>
+                  <div style={{fontSize:12,color:"#6E6E6E"}}>{r.loaves}×{r.loafG}g · {fmtDur(totalMin)}</div>
+                </div>
+                <button onClick={()=>startBake(r)} style={{background:"#283618",color:"#FFFFFF",border:"none",borderRadius:12,padding:"9px 16px",fontSize:13,fontWeight:700,flexShrink:0}}>Bake</button>
+              </div>;
+            })}
+            {recipes.length===0&&<Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>No recipes yet.</p></Card>}
           </div>
 
-          {/* Recent bakes */}
+          {/* Section: Recent Bakes */}
           {savedLogs.length>0&&<>
-            <SecH>Recent Bakes</SecH>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{marginBottom:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recent Bakes</div>
+              <button onClick={()=>setView(VIEWS.LOG)} style={{fontSize:12,fontWeight:600,color:"#606c38",background:"none",border:"none",padding:"4px 0"}}>See all →</button>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
               {savedLogs.slice(0,3).map(log=>(
                 <button key={log.id} onClick={()=>{setViewingLog(log.id);setView(VIEWS.LOG);}}
-                  style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  style={{background:"#FFFFFF",borderRadius:16,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px rgba(0,0,0,0.04)"}}>
                   <div>
-                    <div style={{fontSize:15,fontWeight:700,color:"#283618"}}>{log.recipeName}</div>
-                    <div style={{fontSize:12,color:"#6E6E6E",marginTop:2}}>{new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"})}</div>
+                    <div style={{fontSize:15,fontWeight:700,color:"#283618",marginBottom:3}}>{log.recipeName||"Untitled"}</div>
+                    <div style={{fontSize:12,color:"#6E6E6E"}}>{new Date(log.startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}{log.review?.rating?` · ${"★".repeat(log.review.rating)}`:""}</div>
                   </div>
-                  <div style={{fontSize:13,color:"#6E6E6E"}}>→</div>
+                  <span style={{color:"#C8C8C0",fontSize:16}}>›</span>
                 </button>
               ))}
             </div>
           </>}
+
+          {/* Quick stats row */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            {[
+              {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
+              {label:"Bakes",value:savedLogs.length,action:()=>setView(VIEWS.LOG)},
+              {label:"Flours",value:allFlours.length,action:()=>setView(VIEWS.INGREDIENTS)},
+            ].map(({label,value,action})=>(
+              <button key={label} onClick={action} style={{background:"#FFFFFF",borderRadius:14,padding:"14px 10px",border:"1px solid #E0DED8",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{fontSize:22,fontWeight:800,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
+                <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>{label}</div>
+              </button>
+            ))}
+          </div>
+
         </div>}
 
-        {/* ══════════════════════════════
-            RECIPES LIST
-        ══════════════════════════════ */}
         {view===VIEWS.RECIPES && !editId && <div className="su">
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20}}>
             <div>
