@@ -223,11 +223,11 @@ const uid     = () => Math.random().toString(36).slice(2,9);
 
 /* ─── PRIMITIVES ─────────────────────────────────── */
 const Card = ({children,style={}}) => <div style={{background:"#FFFFFF",borderRadius:20,border:"1px solid #E0DED8",padding:20,marginBottom:12,boxShadow:"0 1px 8px rgba(0,0,0,0.06)",...style}}>{children}</div>;
-const Lbl  = ({children,style={}}) => <div style={{fontSize:11,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6,...style}}>{children}</div>;
+const Lbl  = ({children,style={}}) => <div style={{fontSize:11,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6,...style}}>{children}</div>;
 const SecH = ({children}) => <div style={{fontSize:13,fontWeight:600,color:"#606c38",margin:"20px 0 8px",paddingLeft:4}}>{children}</div>;
 const Inp  = ({value,onChange,type="text",placeholder="",style={}}) => <input value={value} onChange={onChange} type={type} placeholder={placeholder} style={{background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:15,color:"#283618",fontFamily:"inherit",outline:"none",width:"100%",...style}}/>;
-const Stat = ({label,value,highlight,color}) => <div><div style={{fontSize:11,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{label}</div><div style={{fontSize:20,fontWeight:800,letterSpacing:"-0.02em",color:highlight?"#9E3A3A":color||"#FFFFFF"}}>{value}</div></div>;
-const Badge = ({children,color="#5C5C5C"}) => <span style={{background:color+"18",color,fontSize:11,fontWeight:700,borderRadius:8,padding:"3px 9px",display:"inline-block"}}>{children}</span>;
+const Stat = ({label,value,highlight,color}) => <div><div style={{fontSize:11,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{label}</div><div style={{fontSize:20,fontWeight:700,letterSpacing:"-0.02em",color:highlight?"#9E3A3A":color||"#FFFFFF"}}>{value}</div></div>;
+const Badge = ({children,color="#5C5C5C"}) => <span style={{background:color+"18",color,fontSize:11,fontWeight:600,borderRadius:8,padding:"3px 9px",display:"inline-block"}}>{children}</span>;
 
 function Stars({count,max=5,color="#5C5C5C",size=14}) {
   return <span>{[...Array(max)].map((_,i)=><span key={i} style={{fontSize:size,color:i<count?color:"#E0DED8"}}> ★</span>)}</span>;
@@ -540,7 +540,7 @@ export default function App() {
     {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>},
     {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>},
     {v:VIEWS.LOG,        l:"Log",     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
-    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 5-5 11-5 11S7 12 7 7a5 5 0 0 1 5-5z"/><circle cx="12" cy="7" r="2"/></svg>},
+    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22V12"/><path d="M12 12C12 12 7 9 7 5a5 5 0 0 1 10 0c0 4-5 7-5 7z"/><path d="M12 12c0 0-2-4 1-7"/><path d="M12 12c0 0 2-4-1-7"/></svg>},
   ];
 
   return (
@@ -548,14 +548,13 @@ export default function App() {
     {dbLoading && (
       <div style={{position:"fixed",inset:0,background:"#283618",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,flexDirection:"column",gap:12}}>
         <div style={{width:56,height:56,borderRadius:14,border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <span style={{fontSize:28,fontWeight:800,color:"#FFFFFF"}}>B</span>
+          <span style={{fontSize:28,fontWeight:700,color:"#FFFFFF",fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.03em",lineHeight:1}}>B</span>
         </div>
         <p style={{color:"rgba(255,255,255,0.6)",fontSize:14,fontFamily:"'Open Sans',sans-serif"}}>Loading your recipes…</p>
       </div>
     )}
     <div style={{minHeight:"100vh",background:"#F8F8F6",fontFamily:"'Open Sans', sans-serif",color:"#283618"}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}
         input,textarea,button,select{font-family:inherit}
         input,textarea,select{transition:border-color 0.2s}
         input:focus,textarea:focus,select:focus{outline:none;border-bottom-color:#606c38!important;background:transparent!important}
@@ -577,24 +576,24 @@ export default function App() {
         <div style={{height:52,display:"flex",alignItems:"center",padding:"0 18px",cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.HOME);}}>
           <div style={{display:"flex",alignItems:"center",gap:9}}>
             <div style={{width:30,height:30,borderRadius:9,border:"2px solid rgba(255,255,255,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <span style={{fontSize:16,fontWeight:800,color:"#FFFFFF",lineHeight:1}}>B</span>
+              <span style={{fontSize:16,fontWeight:700,color:"#FFFFFF",lineHeight:1,fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.03em"}}>B</span>
             </div>
-            <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.03em",color:"#FFFFFF"}}>Bake it</span>
+            <span style={{fontWeight:600,fontSize:18,letterSpacing:"-0.03em",color:"#FFFFFF"}}>Bake it</span>
           </div>
         </div>
       </nav>
 
       {/* BOTTOM TAB BAR — TrueCoach style */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#FFFFFF",borderTop:"1px solid #EBEBEB",paddingBottom:"env(safe-area-inset-bottom)"}}>
-        <div style={{display:"flex",height:60,alignItems:"center",padding:"0 4px"}}>
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",borderTop:"none",paddingBottom:"env(safe-area-inset-bottom)"}}>
+        <div style={{display:"flex",height:76,alignItems:"center",padding:"8px 4px 8px"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"none",border:"none",padding:"4px 2px",minWidth:0}}>
-              <div style={{width:42,height:32,borderRadius:16,background:active?"#EFF5E7":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s",color:active?"#3A5A1C":"#ACACAC"}}>
+              <div style={{width:42,height:32,borderRadius:16,background:active?"rgba(255,255,255,0.12)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s",color:active?"#FFFFFF":"rgba(255,255,255,0.4)"}}>
                 {icon}
               </div>
-              <span style={{fontSize:10,fontWeight:active?700:500,color:active?"#3A5A1C":"#ACACAC",letterSpacing:"0.01em",whiteSpace:"nowrap"}}>{l}</span>
+              <span style={{fontSize:10,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.4)",letterSpacing:"0.01em",whiteSpace:"nowrap"}}>{l}</span>
             </button>;
           })}
         </div>
@@ -620,8 +619,8 @@ export default function App() {
             return <div onClick={()=>setView(VIEWS.BAKE)}
               style={{background:"#283618",borderRadius:20,padding:"20px",marginBottom:20,cursor:"pointer",position:"relative",overflow:"hidden"}}>
               <div style={{position:"absolute",top:0,right:0,width:120,height:120,borderRadius:"50%",background:"rgba(255,255,255,0.04)",transform:"translate(30px,-30px)"}}/>
-              <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>Bake in progress</div>
-              <div style={{fontSize:22,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.02em",marginBottom:4}}>{bakeRecipe.name}</div>
+              <div style={{fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>Bake in progress</div>
+              <div style={{fontSize:22,fontWeight:700,color:"#FFFFFF",letterSpacing:"-0.02em",marginBottom:4}}>{bakeRecipe.name}</div>
               {curStep&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:curStep.color,flexShrink:0}}/>
                 <span style={{fontSize:14,color:"rgba(255,255,255,0.7)",fontWeight:500}}>{curStep.name}</span>
@@ -629,16 +628,16 @@ export default function App() {
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 {estStr&&<div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:1}}>Est. finish</div>
-                  <div style={{fontSize:16,fontWeight:700,color:"#8BC44A"}}>{estStr}</div>
+                  <div style={{fontSize:16,fontWeight:600,color:"#8BC44A"}}>{estStr}</div>
                 </div>}
-                <div style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,color:"#FFFFFF"}}>Continue →</div>
+                <div style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:600,color:"#FFFFFF"}}>Continue →</div>
               </div>
             </div>;
           })()}
 
           {/* Section: Your Recipes */}
           <div style={{marginBottom:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recipes</div>
+            <div style={{fontSize:13,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recipes</div>
             <button onClick={()=>setView(VIEWS.RECIPES)} style={{fontSize:12,fontWeight:600,color:"#606c38",background:"none",border:"none",padding:"4px 0"}}>See all →</button>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
@@ -646,10 +645,10 @@ export default function App() {
               const totalMin=(r.autolyseEnabled?r.steps:r.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
               return <div key={r.id} style={{background:"#FFFFFF",borderRadius:16,padding:"14px 16px",border:"1px solid #E0DED8",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 1px 6px rgba(0,0,0,0.04)"}}>
                 <div>
-                  <div style={{fontSize:15,fontWeight:700,color:"#283618",marginBottom:3}}>{r.name}</div>
+                  <div style={{fontSize:15,fontWeight:600,color:"#283618",marginBottom:3}}>{r.name}</div>
                   <div style={{fontSize:12,color:"#6E6E6E"}}>{r.loaves}×{r.loafG}g · {fmtDur(totalMin)}</div>
                 </div>
-                <button onClick={()=>startBake(r)} style={{background:"#283618",color:"#FFFFFF",border:"none",borderRadius:12,padding:"9px 16px",fontSize:13,fontWeight:700,flexShrink:0}}>Bake</button>
+                <button onClick={()=>startBake(r)} style={{background:"#283618",color:"#FFFFFF",border:"none",borderRadius:12,padding:"9px 16px",fontSize:13,fontWeight:600,flexShrink:0}}>Bake</button>
               </div>;
             })}
             {recipes.length===0&&<Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>No recipes yet.</p></Card>}
@@ -658,7 +657,7 @@ export default function App() {
           {/* Section: Recent Bakes */}
           {savedLogs.length>0&&<>
             <div style={{marginBottom:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recent Bakes</div>
+              <div style={{fontSize:13,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em"}}>Recent Bakes</div>
               <button onClick={()=>setView(VIEWS.LOG)} style={{fontSize:12,fontWeight:600,color:"#606c38",background:"none",border:"none",padding:"4px 0"}}>See all →</button>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
@@ -666,7 +665,7 @@ export default function App() {
                 <button key={log.id} onClick={()=>{setViewingLog(log.id);setView(VIEWS.LOG);}}
                   style={{background:"#FFFFFF",borderRadius:16,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px rgba(0,0,0,0.04)"}}>
                   <div>
-                    <div style={{fontSize:15,fontWeight:700,color:"#283618",marginBottom:3}}>{log.recipeName||"Untitled"}</div>
+                    <div style={{fontSize:15,fontWeight:600,color:"#283618",marginBottom:3}}>{log.recipeName||"Untitled"}</div>
                     <div style={{fontSize:12,color:"#6E6E6E"}}>{new Date(log.startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}{log.review?.rating?` · ${"★".repeat(log.review.rating)}`:""}</div>
                   </div>
                   <span style={{color:"#C8C8C0",fontSize:16}}>›</span>
@@ -683,7 +682,7 @@ export default function App() {
               {label:"Flours",value:allFlours.length,action:()=>setView(VIEWS.INGREDIENTS)},
             ].map(({label,value,action})=>(
               <button key={label} onClick={action} style={{background:"#FFFFFF",borderRadius:14,padding:"14px 10px",border:"1px solid #E0DED8",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <div style={{fontSize:22,fontWeight:800,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
+                <div style={{fontSize:22,fontWeight:700,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
                 <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>{label}</div>
               </button>
             ))}
@@ -694,10 +693,10 @@ export default function App() {
         {view===VIEWS.RECIPES && !editId && <div className="su">
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20}}>
             <div>
-              <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em",marginBottom:2}}>Recipes</div>
+              <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em",marginBottom:2}}>Recipes</div>
               <div style={{fontSize:14,color:"#606c38"}}>{recipes.length} saved</div>
             </div>
-            <button onClick={addRecipe} style={{padding:"10px 18px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:700}}>+ New</button>
+            <button onClick={addRecipe} style={{padding:"10px 18px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:600}}>+ New</button>
           </div>
 
           {recipes.map(r=>{
@@ -709,10 +708,10 @@ export default function App() {
 
               <div style={{padding:"16px 18px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:10}}>
-                  <div style={{fontSize:18,fontWeight:800,letterSpacing:"-0.02em"}}>{r.name}</div>
+                  <div style={{fontSize:18,fontWeight:700,letterSpacing:"-0.02em"}}>{r.name}</div>
                   <div style={{display:"flex",gap:8,flexShrink:0}}>
                     <button onClick={()=>setEditId(r.id)} style={{padding:"6px 13px",borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:13,fontWeight:600}}>Edit</button>
-                    <button onClick={()=>startBake(r)} style={{padding:"6px 14px",borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>Bake →</button>
+                    <button onClick={()=>startBake(r)} style={{padding:"6px 14px",borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>Bake →</button>
                   </div>
                 </div>
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
@@ -726,9 +725,9 @@ export default function App() {
                   {r.ingredients.filter(i=>parseFloat(i.grams)).map(i=>{
                     const f=i.flourId?FLOUR_DB.find(fl=>fl.id===i.flourId):null;
                     return <div key={i.id}>
-                      <div style={{fontSize:10,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{f?f.name:i.label}</div>
-                      <div style={{fontSize:15,fontWeight:800}}>{i.grams}g</div>
-                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:11,color:"#5C5C5C",fontWeight:700}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
+                      <div style={{fontSize:10,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:2}}>{f?f.name:i.label}</div>
+                      <div style={{fontSize:15,fontWeight:700}}>{i.grams}g</div>
+                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:11,color:"#5C5C5C",fontWeight:600}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
                     </div>;
                   })}
                 </div>
@@ -748,14 +747,14 @@ export default function App() {
         {view===VIEWS.RECIPES && editId && editRecipe && <div className="su">
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
             <button onClick={()=>setEditId(null)} style={{width:34,height:34,borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
-            <div style={{flex:1,fontSize:22,fontWeight:800,letterSpacing:"-0.02em"}}>Edit Recipe</div>
-            <button onClick={()=>{startBake(editRecipe);setEditId(null);}} style={{padding:"8px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>Bake →</button>
+            <div style={{flex:1,fontSize:22,fontWeight:700,letterSpacing:"-0.02em"}}>Edit Recipe</div>
+            <button onClick={()=>{startBake(editRecipe);setEditId(null);}} style={{padding:"8px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>Bake →</button>
           </div>
 
           {/* Name */}
           <Card>
             <input value={editRecipe.name} onChange={e=>updE(r=>({...r,name:e.target.value}))} placeholder="Recipe name"
-              style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:20,fontWeight:800,color:"#283618",outline:"none",letterSpacing:"-0.02em"}}/>
+              style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:20,fontWeight:700,color:"#283618",outline:"none",letterSpacing:"-0.02em"}}/>
           </Card>
 
           {/* Session setup */}
@@ -779,7 +778,7 @@ export default function App() {
                         const converted=u==="C"?Math.round((curVal-32)*5/9):Math.round(curVal*9/5+32);
                         updE(r=>({...r,tempUnit:u,ddt:String(converted)}));
                       }}
-                      style={{fontSize:11,fontWeight:700,padding:"3px 7px",borderRadius:6,background:(editRecipe.tempUnit||"F")===u?"#283618":"transparent",color:(editRecipe.tempUnit||"F")===u?"#F8F8F6":"#ACACAC",border:"none",transition:"all 0.15s",cursor:"pointer"}}>°{u}</button>)}
+                      style={{fontSize:11,fontWeight:600,padding:"3px 7px",borderRadius:6,background:(editRecipe.tempUnit||"F")===u?"#283618":"transparent",color:(editRecipe.tempUnit||"F")===u?"#F8F8F6":"#ACACAC",border:"none",transition:"all 0.15s",cursor:"pointer"}}>°{u}</button>)}
                   </div>
                 </div>
               </div>
@@ -790,7 +789,7 @@ export default function App() {
           <SecH>Dough Formula</SecH>
           <Card style={{padding:0,overflow:"hidden"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 72px 64px 30px",padding:"9px 16px",background:"#E0DED8",borderBottom:"0.5px solid #E0DED8",gap:8,alignItems:"center"}}>
-              {["Ingredient","Grams","Baker's %",""].map((h,i)=><div key={i} style={{fontSize:10,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",textAlign:i===1||i===2?"center":"left"}}>{h}</div>)}
+              {["Ingredient","Grams","Baker's %",""].map((h,i)=><div key={i} style={{fontSize:10,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",textAlign:i===1||i===2?"center":"left"}}>{h}</div>)}
             </div>
 
             {editRecipe.ingredients.map((ing,idx)=>{
@@ -815,7 +814,7 @@ export default function App() {
                               style={{background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"5px 2px",fontSize:14,fontWeight:600,color:"#283618",outline:"none",flex:1}}/>
                             <button
                               onClick={()=>updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,manual:false,label:"",flourId:""}:i)}))}
-                              style={{fontSize:10,fontWeight:700,color:"#606c38",background:"#EFEFED",border:"none",borderRadius:8,padding:"3px 7px",whiteSpace:"nowrap",flexShrink:0}}>
+                              style={{fontSize:10,fontWeight:600,color:"#606c38",background:"#EFEFED",border:"none",borderRadius:8,padding:"3px 7px",whiteSpace:"nowrap",flexShrink:0}}>
                               Use list
                             </button>
                           </div>
@@ -860,7 +859,7 @@ export default function App() {
                   </div>
                   <input type="number" value={ing.grams} onChange={e=>updE(r=>({...r,ingredients:r.ingredients.map(i=>i.id===ing.id?{...i,grams:e.target.value}:i)}))} placeholder="0"
                     style={{background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"5px 4px",fontSize:15,fontWeight:600,color:"#283618",outline:"none",textAlign:"center",width:"100%"}}/>
-                  <div style={{fontSize:13,fontWeight:700,color:"#5C5C5C",textAlign:"center"}}>{pct!=="—"?pct+"%":"—"}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#5C5C5C",textAlign:"center"}}>{pct!=="—"?pct+"%":"—"}</div>
                   <button onClick={()=>updE(r=>({...r,ingredients:r.ingredients.filter(i=>i.id!==ing.id)}))}
                     style={{width:24,height:24,borderRadius:"50%",background:"#E8E8E8",color:"#5C5C5C",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
                 </div>
@@ -869,9 +868,9 @@ export default function App() {
 
             <div style={{padding:"10px 16px",borderTop:"0.5px solid #E0DED8",display:"flex",gap:8}}>
               <button onClick={()=>updE(r=>({...r,ingredients:[...r.ingredients,{id:uid(),type:"flour",flourId:null,label:"",grams:""}]}))}
-                style={{flex:1,padding:"9px",borderRadius:10,background:"#E8E8E8",color:"#5C5C5C",fontSize:13,fontWeight:700,border:"1.5px dashed #A0A0A0"}}>+ Flour</button>
+                style={{flex:1,padding:"9px",borderRadius:10,background:"#E8E8E8",color:"#5C5C5C",fontSize:13,fontWeight:600,border:"1.5px dashed #A0A0A0"}}>+ Flour</button>
               <button onClick={()=>updE(r=>({...r,ingredients:[...r.ingredients,{id:uid(),type:"other",flourId:null,label:"",grams:""}]}))}
-                style={{flex:1,padding:"9px",borderRadius:10,background:"#F2F2F0",color:"#606c38",fontSize:13,fontWeight:700,border:"1.5px dashed #606c38"}}>+ Ingredient</button>
+                style={{flex:1,padding:"9px",borderRadius:10,background:"#F2F2F0",color:"#606c38",fontSize:13,fontWeight:600,border:"1.5px dashed #606c38"}}>+ Ingredient</button>
             </div>
           </Card>
 
@@ -898,12 +897,12 @@ export default function App() {
                   <div style={{width:10,height:10,borderRadius:"50%",background:disabled?"#E0DED8":s.color,flexShrink:0}}/>
                   <span style={{flex:1,fontSize:14,fontWeight:500}}>{s.name}</span>
                   {isAuto && <button onClick={()=>updE(r=>({...r,autolyseEnabled:!r.autolyseEnabled}))}
-                    style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:editRecipe.autolyseEnabled?"#283618":"#E0DED8",color:editRecipe.autolyseEnabled?"#F8F8F6":"#606c38"}}>{editRecipe.autolyseEnabled?"On":"Off"}</button>}
+                    style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:editRecipe.autolyseEnabled?"#283618":"#E0DED8",color:editRecipe.autolyseEnabled?"#F8F8F6":"#606c38"}}>{editRecipe.autolyseEnabled?"On":"Off"}</button>}
                   {isBulk && <div style={{display:"flex",alignItems:"center",gap:4}}>
                     <span style={{fontSize:11,color:"#606c38",fontWeight:600}}>S&F</span>
                     <input type="number" value={s.sfCount} min={0} max={10}
                       onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,sfCount:parseInt(e.target.value)||0}:st)}))}
-                      style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:700,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
+                      style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:600,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
                   </div>}
                   {!disabled && (s.id==="retard" ? (
                     /* Retard: overnight on/off + hr input when off */
@@ -914,13 +913,13 @@ export default function App() {
                           style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
                         <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                           {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
-                            style={{padding:"4px 6px",fontSize:11,fontWeight:700,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                            style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
                         </div>
                       </>}
                       <button onClick={()=>{
                         const next=unit==="overnight"?"hr":"overnight";
                         updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"?600:st.durationMin}:st)}));
-                      }} style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
+                      }} style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
                         {unit==="overnight"?"Overnight: On":"Overnight"}
                       </button>
                     </div>
@@ -931,7 +930,7 @@ export default function App() {
                         style={{width:48,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
                       <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                         {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
-                          style={{padding:"4px 6px",fontSize:11,fontWeight:700,background:unit===u?"#283618":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                          style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#283618":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
                       </div>
                     </div>
                   ))}
@@ -954,22 +953,22 @@ export default function App() {
           {!bakeStarted||!bakeRecipe ? (
             <div style={{textAlign:"center",paddingTop:60}}>
               <div style={{width:64,height:64,borderRadius:20,border:"1.5px solid #2C2C2E",margin:"0 auto 16px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:28,fontWeight:800,color:"#E0DED8"}}>B</span>
+                <span style={{fontSize:28,fontWeight:700,color:"#E0DED8"}}>B</span>
               </div>
-              <div style={{fontSize:22,fontWeight:800,marginBottom:8}}>No active bake</div>
+              <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>No active bake</div>
               <p style={{color:"#606c38",fontSize:15,marginBottom:28,lineHeight:1.5}}>Choose a recipe and tap Bake to start.</p>
               {recipes.length>0 && <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <div style={{fontSize:12,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4,textAlign:"left"}}>Quick Start</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4,textAlign:"left"}}>Quick Start</div>
                 {recipes.map(r=><button key={r.id} onClick={()=>startBake(r)}
-                  style={{padding:"14px 18px",borderRadius:14,background:"#FFFFFF",border:"1px solid #E0DED8",color:"#283618",fontSize:15,fontWeight:700,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
-                  {r.name}<span style={{color:"#5C5C5C",fontSize:13,fontWeight:700}}>Bake →</span>
+                  style={{padding:"14px 18px",borderRadius:14,background:"#FFFFFF",border:"1px solid #E0DED8",color:"#283618",fontSize:15,fontWeight:600,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
+                  {r.name}<span style={{color:"#5C5C5C",fontSize:13,fontWeight:600}}>Bake →</span>
                 </button>)}
               </div>}
             </div>
           ) : <>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div>
-                <div style={{fontSize:22,fontWeight:800,letterSpacing:"-0.03em"}}>{bakeRecipe.name}</div>
+                <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.03em"}}>{bakeRecipe.name}</div>
                 {(()=>{
                 const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
                 const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
@@ -981,10 +980,10 @@ export default function App() {
                   {estStr&&<span> · Est. finish <strong style={{color:"#283618"}}>{estStr}</strong></span>}
                 </div>;
               })()}
-                <button onClick={finishBake} style={{marginTop:10,padding:"7px 14px",borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:12,fontWeight:700}}>Finish & Save →</button>
+                <button onClick={finishBake} style={{marginTop:10,padding:"7px 14px",borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:12,fontWeight:600}}>Finish & Save →</button>
               </div>
               {activeStep!=null&&activeStep<bakeRecipe.steps.length&&
-                <div style={{background:bakeRecipe.steps[activeStep].color+"22",color:bakeRecipe.steps[activeStep].color,borderRadius:20,padding:"6px 13px",fontSize:13,fontWeight:700}}>
+                <div style={{background:bakeRecipe.steps[activeStep].color+"22",color:bakeRecipe.steps[activeStep].color,borderRadius:20,padding:"6px 13px",fontSize:13,fontWeight:600}}>
                   {activeStep+1}/{bakeRecipe.autolyseEnabled?bakeRecipe.steps.length:bakeRecipe.steps.filter(s=>s.id!=="autolyse").length}
                 </div>}
             </div>
@@ -993,13 +992,13 @@ export default function App() {
               const s=bakeRecipe.steps[activeStep],sfNext=nextSfIn(activeStep);
               return <Card style={{padding:24}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/><div style={{fontSize:11,fontWeight:800,color:"#283618",textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.name}</div></div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/><div style={{fontSize:11,fontWeight:700,color:"#283618",textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.name}</div></div>
                   <div style={{fontSize:13,fontWeight:600,color:"#606c38"}}>{fmtDur(s.durationMin)}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:24,marginBottom:22}}>
                   <Ring progress={prog(activeStep)} color={s.color}>
-                    <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,color:"#283618"}}>{fmtTime(remaining(activeStep))}</div>
-                    <div style={{fontSize:10,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>left</div>
+                    <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.04em",lineHeight:1,color:"#283618"}}>{fmtTime(remaining(activeStep))}</div>
+                    <div style={{fontSize:10,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>left</div>
                   </Ring>
                   <div style={{flex:1,display:"flex",flexDirection:"column",gap:16}}>
                     <Stat label="Elapsed" value={fmtTime(elapsed(activeStep))}/>
@@ -1017,12 +1016,12 @@ export default function App() {
                       {s.sfCount>0&&<button onClick={()=>{
                         const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
                         upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.max(0,st.sfCount-1)}:st)}));
-                      }} style={{width:28,height:28,borderRadius:8,background:"#EFEFED",color:"#606c38",fontSize:16,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>}
-                      <span style={{fontSize:13,fontWeight:700,color:"#606c38",minWidth:16,textAlign:"center"}}>{s.sfCount}</span>
+                      }} style={{width:28,height:28,borderRadius:8,background:"#EFEFED",color:"#606c38",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>}
+                      <span style={{fontSize:13,fontWeight:600,color:"#606c38",minWidth:16,textAlign:"center"}}>{s.sfCount}</span>
                       <button onClick={()=>{
                         const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
                         upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.min(20,st.sfCount+1)}:st)}));
-                      }} style={{width:28,height:28,borderRadius:8,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                      }} style={{width:28,height:28,borderRadius:8,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -1035,7 +1034,7 @@ export default function App() {
                         <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}
                           onClick={()=>setExpandedFold(isExpanded?null:n)}>
                           <button onClick={e=>{e.stopPropagation();toggleSF(activeStep,n);}}
-                            style={{width:36,height:36,borderRadius:10,background:done?"#FFFFFF22":"#EFEFED",color:done?"#FFFFFF":"#606c38",fontSize:13,fontWeight:800,flexShrink:0,border:done?`2px solid ${s.color}`:"2px solid transparent"}}>
+                            style={{width:36,height:36,borderRadius:10,background:done?"#FFFFFF22":"#EFEFED",color:done?"#FFFFFF":"#606c38",fontSize:13,fontWeight:700,flexShrink:0,border:done?`2px solid ${s.color}`:"2px solid transparent"}}>
                             {done?"✓":n}
                           </button>
                           <span style={{flex:1,fontSize:14,fontWeight:600,color:done?"#FFFFFF":"#283618"}}>Fold {n}</span>
@@ -1071,11 +1070,11 @@ export default function App() {
                       const done=steamDone[sub.key];
                       return <div key={sub.key} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderRadius:12,background:done?"#283618":"#F2F2F0",border:`1px solid ${done?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
                         <button onClick={()=>setSteamDone(p=>({...p,[sub.key]:!p[sub.key]}))}
-                          style={{width:32,height:32,borderRadius:9,background:done?"#FFFFFF22":"#FFFFFF",border:done?"2px solid rgba(255,255,255,0.3)":"2px solid #E0DED8",color:done?"#FFFFFF":"#606c38",fontSize:14,fontWeight:800,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          style={{width:32,height:32,borderRadius:9,background:done?"#FFFFFF22":"#FFFFFF",border:done?"2px solid rgba(255,255,255,0.3)":"2px solid #E0DED8",color:done?"#FFFFFF":"#606c38",fontSize:14,fontWeight:700,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                           {done?"✓":""}
                         </button>
                         <div>
-                          <div style={{fontSize:14,fontWeight:700,color:done?"#FFFFFF":"#283618"}}>{sub.label}</div>
+                          <div style={{fontSize:14,fontWeight:600,color:done?"#FFFFFF":"#283618"}}>{sub.label}</div>
                           <div style={{fontSize:11,color:done?"rgba(255,255,255,0.6)":"#6E6E6E",marginTop:1}}>{sub.desc}</div>
                         </div>
                       </div>;
@@ -1095,7 +1094,7 @@ export default function App() {
                 </div>
 
                 <button onClick={()=>completeStep(activeStep)}
-                  style={{width:"100%",padding:"16px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:800,letterSpacing:"-0.01em"}}>
+                  style={{width:"100%",padding:"16px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:700,letterSpacing:"-0.01em"}}>
                   Complete → {activeStep+1<bakeRecipe.steps.length?bakeRecipe.steps[activeStep+1].name:"Finish"}
                 </button>
               </Card>;
@@ -1103,9 +1102,9 @@ export default function App() {
 
             {activeStep===null&&<Card><div style={{textAlign:"center",padding:"20px 0"}}>
               <div style={{width:56,height:56,borderRadius:18,background:"#283618",margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:24,fontWeight:800,color:"#5C5C5C"}}>✓</span>
+                <span style={{fontSize:24,fontWeight:700,color:"#5C5C5C"}}>✓</span>
               </div>
-              <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Bake complete!</div>
+              <div style={{fontSize:22,fontWeight:700,marginBottom:6}}>Bake complete!</div>
               <p style={{color:"#606c38",fontSize:14}}>Check your log for the session summary.</p>
             </div></Card>}
 
@@ -1119,12 +1118,12 @@ export default function App() {
                     style={{display:"flex",alignItems:"center",gap:12,padding:"13px 18px",opacity:isFuture?0.35:1,cursor:canEdit?"pointer":"default",userSelect:"none"}}>
                     <div style={{width:10,height:10,borderRadius:"50%",background:isPast?"#5C5C5C":isCurr?s.color:"#E0DED8",flexShrink:0,transition:"background 0.4s"}}/>
                     <span style={{flex:1,fontSize:15,fontWeight:isCurr?700:400}}>{s.name}</span>
-                    {stepNotes[i]&&<span style={{fontSize:11,color:"#606c38",fontWeight:700}}>note</span>}
-                    {(stepPhotos[i]?.length||0)>0&&<span style={{fontSize:11,color:"#606c38",fontWeight:700}}>{stepPhotos[i].length} photo{stepPhotos[i].length>1?"s":""}</span>}
-                    {isPast&&!isOpen&&<span style={{color:"#5C5C5C",fontSize:11,fontWeight:700}}>done</span>}
-                    {isCurr&&<span className="pulse" style={{fontSize:11,fontWeight:800,color:"#283618",background:s.color+"33",borderRadius:6,padding:"2px 7px"}}>ACTIVE</span>}
+                    {stepNotes[i]&&<span style={{fontSize:11,color:"#606c38",fontWeight:600}}>note</span>}
+                    {(stepPhotos[i]?.length||0)>0&&<span style={{fontSize:11,color:"#606c38",fontWeight:600}}>{stepPhotos[i].length} photo{stepPhotos[i].length>1?"s":""}</span>}
+                    {isPast&&!isOpen&&<span style={{color:"#5C5C5C",fontSize:11,fontWeight:600}}>done</span>}
+                    {isCurr&&<span className="pulse" style={{fontSize:11,fontWeight:700,color:"#283618",background:s.color+"33",borderRadius:6,padding:"2px 7px"}}>ACTIVE</span>}
                     <span style={{fontSize:13,color:"#606c38"}}>{fmtDur(s.durationMin)}</span>
-                    {s.sfCount>0&&<span style={{fontSize:11,fontWeight:700,color:s.color,background:s.color+"20",borderRadius:7,padding:"2px 7px"}}>×{s.sfCount}</span>}
+                    {s.sfCount>0&&<span style={{fontSize:11,fontWeight:600,color:s.color,background:s.color+"20",borderRadius:7,padding:"2px 7px"}}>×{s.sfCount}</span>}
                     {canEdit&&<span style={{fontSize:11,color:"#E0DED8",flexShrink:0}}>{isOpen?"▲":"▼"}</span>}
                   </div>
                   {isOpen&&<div style={{padding:"0 18px 18px",background:"#E0DED8",borderTop:"0.5px solid #E0DED8"}}>
@@ -1140,7 +1139,7 @@ export default function App() {
                       <button onClick={()=>{setPhotoTarget(i);fileRef.current?.click();}}
                         style={{width:60,height:60,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#E0DED8",fontSize:24,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                     </div>
-                    <button onClick={()=>setEditingStep(null)} style={{marginTop:14,padding:"9px 20px",borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>Done</button>
+                    <button onClick={()=>setEditingStep(null)} style={{marginTop:14,padding:"9px 20px",borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>Done</button>
                   </div>}
                 </div>;
               })}
@@ -1175,7 +1174,7 @@ export default function App() {
                 <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
                 <div style={{flex:1}}>
                   <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
-                    style={{fontSize:20,fontWeight:800,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",width:"100%",padding:"2px 0",outline:"none",fontFamily:"inherit"}}/>
+                    style={{fontSize:20,fontWeight:700,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",width:"100%",padding:"2px 0",outline:"none",fontFamily:"inherit"}}/>
                   {log.isManual ? (
                     <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
                       <input type="date" value={new Date(log.startTime).toISOString().slice(0,10)}
@@ -1209,8 +1208,8 @@ export default function App() {
                     const flourG=(log.ingredients||[]).filter(x=>x.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
                     return <div key={i.id}>
                       <Lbl>{fl?fl.name:i.label}</Lbl>
-                      <div style={{fontSize:18,fontWeight:800}}>{i.grams}g</div>
-                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:12,fontWeight:700,color:"#5C5C5C"}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
+                      <div style={{fontSize:18,fontWeight:700}}>{i.grams}g</div>
+                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:12,fontWeight:600,color:"#5C5C5C"}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
                     </div>;
                   })}
                 </div>
@@ -1223,7 +1222,7 @@ export default function App() {
                   <Card key={s.id}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                       <div style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-                      <span style={{fontSize:14,fontWeight:700,color:"#283618"}}>{s.name}</span>
+                      <span style={{fontSize:14,fontWeight:600,color:"#283618"}}>{s.name}</span>
                     </div>
                     <textarea
                       placeholder={`Notes for ${s.name}…`}
@@ -1291,7 +1290,7 @@ export default function App() {
                   <div style={{display:"flex",gap:8,marginTop:6}}>
                     {[1,2,3,4,5].map(n=>(
                       <button key={n} onClick={()=>updateLog({review:{...(log.review||{}),rating:n}})}
-                        style={{width:40,height:40,borderRadius:10,background:(log.review?.rating||0)>=n?"#283618":"#EFEFED",color:(log.review?.rating||0)>=n?"#FFFFFF":"#6E6E6E",fontSize:14,fontWeight:800,border:"none"}}>
+                        style={{width:40,height:40,borderRadius:10,background:(log.review?.rating||0)>=n?"#283618":"#EFEFED",color:(log.review?.rating||0)>=n?"#FFFFFF":"#6E6E6E",fontSize:14,fontWeight:700,border:"none"}}>
                         {n}
                       </button>
                     ))}
@@ -1301,13 +1300,13 @@ export default function App() {
               </Card>
 
               <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
-                style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:700,width:"100%"}}>Delete this log</button>
+                style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
             </>;
           })() : <>
 
           {/* ── Log list + active session ────────────── */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:4}}>
-            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em"}}>Bake Log</div>
+            <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em"}}>Bake Log</div>
             <button onClick={()=>{
               const id=uid();
               const blank={
@@ -1320,15 +1319,15 @@ export default function App() {
               setSavedLogs(prev=>[blank,...prev]);
               saveBakeLog(blank);
               setViewingLog(id);
-            }} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>+ Add past bake</button>
+            }} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>+ Add past bake</button>
           </div>
           <div style={{fontSize:14,color:"#606c38",marginBottom:20}}>{savedLogs.length} session{savedLogs.length!==1?"s":""} recorded</div>
 
           {/* Active session */}
           {bakeStarted&&bakeRecipe&&<>
             <div style={{background:"#283618",borderRadius:16,padding:"14px 16px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Active session</div>
-              <div style={{fontSize:16,fontWeight:800,color:"#FFFFFF",marginBottom:4}}>{bakeRecipe.name}</div>
+              <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.6)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Active session</div>
+              <div style={{fontSize:16,fontWeight:700,color:"#FFFFFF",marginBottom:4}}>{bakeRecipe.name}</div>
               {(()=>{
                   const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
                   const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
@@ -1348,7 +1347,7 @@ export default function App() {
                     return <div key={s.id} style={{background:"rgba(255,255,255,0.08)",borderRadius:10,padding:"10px 12px"}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                         <div style={{width:7,height:7,borderRadius:"50%",background:s.color}}/>
-                        <span style={{fontSize:13,fontWeight:700,color:"#FFFFFF"}}>{s.name}</span>
+                        <span style={{fontSize:13,fontWeight:600,color:"#FFFFFF"}}>{s.name}</span>
                       </div>
                       {stepNotes[i]&&<p style={{fontSize:13,color:"rgba(255,255,255,0.7)",lineHeight:1.5}}>{stepNotes[i]}</p>}
                       {stepPhotos[i]?.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>{stepPhotos[i].map((ph,pi)=><img key={pi} src={ph.src} alt="" style={{height:60,width:60,objectFit:"cover",borderRadius:10}}/>)}</div>}
@@ -1361,7 +1360,7 @@ export default function App() {
                 style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"none",borderRadius:10,padding:"10px 12px",fontSize:14,color:"#FFFFFF",resize:"vertical",outline:"none",fontFamily:"inherit",marginBottom:12}}/>
 
               <button onClick={finishBake}
-                style={{width:"100%",padding:"11px",borderRadius:12,background:"#FFFFFF",color:"#283618",fontSize:14,fontWeight:800}}>Finish & Save Bake</button>
+                style={{width:"100%",padding:"11px",borderRadius:12,background:"#FFFFFF",color:"#283618",fontSize:14,fontWeight:700}}>Finish & Save Bake</button>
             </div>
           </>}
 
@@ -1373,7 +1372,7 @@ export default function App() {
                 return <button key={log.id} onClick={()=>setViewingLog(log.id)}
                   style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
-                    <div style={{fontSize:15,fontWeight:700,color:"#283618"}}>{log.recipeName}</div>
+                    <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName}</div>
                     <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
                       {new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
                       {dMin?` · ${Math.floor(dMin/60)}h ${dMin%60}m`:""}
@@ -1395,14 +1394,14 @@ export default function App() {
         ══════════════════════════════ */}
         {view===VIEWS.INGREDIENTS && <div className="su">
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:2}}>
-            <div style={{fontSize:26,fontWeight:800,letterSpacing:"-0.03em"}}>Ingredients</div>
-            <button onClick={()=>setShowAddFlour(v=>!v)} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:700}}>+ Add</button>
+            <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em"}}>Ingredients</div>
+            <button onClick={()=>setShowAddFlour(v=>!v)} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>+ Add</button>
           </div>
           <div style={{fontSize:14,color:"#606c38",marginBottom:18}}>Australian flour database · {allFlours.length} flours{userFlours.length>0?` · ${userFlours.length} custom`:""}</div>
 
           {/* Add flour form */}
           {showAddFlour && <Card style={{marginBottom:16}}>
-            <div style={{fontSize:15,fontWeight:800,marginBottom:14}}>Add custom flour</div>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>Add custom flour</div>
             {[
               {label:"Name",key:"name",placeholder:"e.g. Heritage White"},
               {label:"Brand",key:"brand",placeholder:"e.g. Local Mill"},
@@ -1432,7 +1431,7 @@ export default function App() {
                 setUserFlours(p=>[...p,entry]);
                 setNewFlour({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
                 setShowAddFlour(false);
-              }} style={{flex:1,padding:"11px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:700}}>Save Flour</button>
+              }} style={{flex:1,padding:"11px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:600}}>Save Flour</button>
               <button onClick={()=>setShowAddFlour(false)} style={{padding:"11px 16px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:14,fontWeight:600}}>Cancel</button>
             </div>
           </Card>}
@@ -1445,7 +1444,7 @@ export default function App() {
           <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4,marginBottom:20,scrollbarWidth:"none"}}>
             {flourTypes.map(t=>(
               <button key={t} onClick={()=>setFlourFilter(t)}
-                style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,background:flourFilter===t?"#283618":"#FFFFFF",color:flourFilter===t?"#F8F8F6":"#606c38",border:`1px solid ${flourFilter===t?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
+                style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0,background:flourFilter===t?"#283618":"#FFFFFF",color:flourFilter===t?"#F8F8F6":"#606c38",border:`1px solid ${flourFilter===t?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
                 {t}
               </button>
             ))}
@@ -1462,8 +1461,8 @@ export default function App() {
               <div onClick={()=>setExpandedFlour(isOpen?null:f.id)} style={{padding:"16px 18px",cursor:"pointer",userSelect:"none"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:10}}>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{f.brand}</div>
-                    <div style={{fontSize:16,fontWeight:800,letterSpacing:"-0.01em",marginBottom:8}}>{f.name}</div>
+                    <div style={{fontSize:11,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{f.brand}</div>
+                    <div style={{fontSize:16,fontWeight:700,letterSpacing:"-0.01em",marginBottom:8}}>{f.name}</div>
                     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                       <Badge color="#606c38">{f.type}</Badge>
                       <Badge color="#606c38">{f.sizes.join(", ")}</Badge>
@@ -1472,7 +1471,7 @@ export default function App() {
                   {/* Protein callout */}
                   <div style={{textAlign:"center",flexShrink:0,minWidth:56}}>
                     <div style={{fontSize:24,fontWeight:900,color:"#283618",letterSpacing:"-0.03em",lineHeight:1}}>{f.protein}<span style={{fontSize:12,fontWeight:600,color:"#606c38"}}>g</span></div>
-                    <div style={{fontSize:9,fontWeight:700,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>protein</div>
+                    <div style={{fontSize:9,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>protein</div>
                     <div style={{width:48,height:5,background:"#E0DED8",borderRadius:4,margin:"0 auto",overflow:"hidden"}}>
                       <div style={{height:"100%",background:"#5C5C5C",borderRadius:4,width:`${pctOfMax}%`}}/>
                     </div>
@@ -1503,8 +1502,8 @@ export default function App() {
                     {l:"Carbs",v:`${f.carbs}g`},
                     {l:"Fibre",v:`${f.fibre}g`},
                   ].map(n=><div key={n.l} style={{background:"#FFFFFF",borderRadius:12,padding:"10px 6px",textAlign:"center",border:`1px solid ${n.hi?"#606c3844":"#E0DED8"}`}}>
-                    <div style={{fontSize:9,fontWeight:700,color:n.hi?"#5C5C5C":"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>{n.l}</div>
-                    <div style={{fontSize:14,fontWeight:800,color:n.hi?"#5C5C5C":"#FFFFFF"}}>{n.v}</div>
+                    <div style={{fontSize:9,fontWeight:600,color:n.hi?"#5C5C5C":"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>{n.l}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:n.hi?"#5C5C5C":"#FFFFFF"}}>{n.v}</div>
                   </div>)}
                 </div>
 
@@ -1525,7 +1524,7 @@ export default function App() {
 
                 {!f.isCustom&&<div style={{fontSize:11,color:"#E0DED8",marginTop:12}}>Sodium: {f.sodium}mg · {f.where}</div>}
                 {f.isCustom&&<button onClick={e=>{e.stopPropagation();setUserFlours(p=>p.filter(x=>x.id!==f.id));setExpandedFlour(null);}}
-                  style={{marginTop:14,padding:"8px 14px",borderRadius:10,background:"#FFF0F0",color:"#9E3A3A",fontSize:12,fontWeight:700}}>Delete</button>}
+                  style={{marginTop:14,padding:"8px 14px",borderRadius:10,background:"#FFF0F0",color:"#9E3A3A",fontSize:12,fontWeight:600}}>Delete</button>}
               </div>}
             </Card>;
           })}
