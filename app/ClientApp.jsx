@@ -385,8 +385,25 @@ export default function App() {
         const dbIds = new Set(dbRecipes.map(r => r.id));
         const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
         missingStarters.forEach(r => saveRecipe(r));
+
+        // Migrate existing starter recipes that are missing starter_peak / make_levain steps
+        const PREPEND_STEPS = [
+          { id:"starter_peak", name:"Starter Peak", duration:480, durationMin:480, sfCount:0, color:STEP_COLORS[0] },
+          { id:"make_levain",  name:"Make Levain",  duration:20,  durationMin:20,  sfCount:0, color:STEP_COLORS[1] },
+        ];
+        const patchedDbRecipes = dbRecipes.map(r => {
+          const starterIds = new Set(STARTER_RECIPES.map(s => s.id));
+          if (!starterIds.has(r.id)) return r; // user recipe — don't touch
+          const stepIds = new Set((r.steps||[]).map(s => s.id));
+          const missing = PREPEND_STEPS.filter(s => !stepIds.has(s.id));
+          if (missing.length === 0) return r;
+          const patched = { ...r, steps: [...missing, ...(r.steps||[])] };
+          saveRecipe(patched);
+          return patched;
+        });
+
         const allRecipesLoaded = dbRecipes.length > 0
-          ? [...dbRecipes, ...missingStarters]
+          ? [...patchedDbRecipes, ...missingStarters]
           : STARTER_RECIPES;
         setRecipes(allRecipesLoaded);
         if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
@@ -619,7 +636,7 @@ export default function App() {
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,background:active?"rgba(255,255,255,0.15)":"none",border:"none",padding:"6px 4px 8px",minWidth:0,cursor:"pointer",borderRadius:0,margin:0,transition:"background 0.15s"}}>
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,background:"none",border:"none",padding:"6px 4px 8px",minWidth:0,cursor:"pointer"}}>
               <div style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.5)",flexShrink:0}}>
                 {icon}
               </div>
