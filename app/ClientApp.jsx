@@ -529,23 +529,29 @@ export default function App() {
         .pulse{animation:pulse 1.8s ease-in-out infinite}
       `}</style>
 
-      {/* NAV */}
-      <nav style={{background:"rgba(40,54,24,0.97)",backdropFilter:"blur(20px)",borderBottom:"0.5px solid #E0DED8",position:"sticky",top:0,zIndex:100,height:54,display:"flex",alignItems:"center",padding:"0 16px",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.HOME);}}>
-          <div style={{width:28,height:28,borderRadius:8,border:"2px solid rgba(255,255,255,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <span style={{fontSize:15,fontWeight:800,color:"#FFFFFF",lineHeight:1}}>B</span>
+      {/* TOP NAV — logo only */}
+      <nav style={{background:"rgba(40,54,24,0.97)",backdropFilter:"blur(20px)",borderBottom:"0.5px solid rgba(255,255,255,0.1)",position:"sticky",top:0,zIndex:100,height:52,display:"flex",alignItems:"center",padding:"0 18px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer"}} onClick={()=>{setEditId(null);setView(VIEWS.HOME);}}>
+          <div style={{width:30,height:30,borderRadius:9,border:"2px solid rgba(255,255,255,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:16,fontWeight:800,color:"#FFFFFF",lineHeight:1}}>B</span>
           </div>
-          <span style={{fontWeight:700,fontSize:17,letterSpacing:"-0.03em",color:"#FFFFFF"}}>Bake it</span>
-        </div>
-        <div style={{display:"flex",background:"#FFFFFF",borderRadius:11,padding:3,gap:1}}>
-          {TABS.map(({v,l})=>(
-            <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-              style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,background:view===v&&!editId?"#E0DED8":"transparent",color:view===v&&!editId?"#283618":"#A8A8A0",boxShadow:view===v&&!editId?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.2s"}}>{l}</button>
-          ))}
+          <span style={{fontWeight:700,fontSize:18,letterSpacing:"-0.03em",color:"#FFFFFF"}}>Bake it</span>
         </div>
       </nav>
 
-      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 90px"}}>
+      {/* BOTTOM TAB BAR */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"rgba(40,54,24,0.97)",backdropFilter:"blur(20px)",borderTop:"0.5px solid rgba(255,255,255,0.1)",display:"flex",paddingBottom:"env(safe-area-inset-bottom)"}}>
+        {TABS.map(({v,l,icon})=>{
+          const active=view===v&&!editId;
+          return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
+            style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"10px 4px 8px",background:"none",border:"none",gap:3}}>
+            <div style={{width:5,height:5,borderRadius:"50%",background:active?"#A8C872":"transparent",marginBottom:1,transition:"background 0.2s"}}/>
+            <span style={{fontSize:11,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.45)",letterSpacing:"0.01em",transition:"all 0.2s"}}>{l}</span>
+          </button>;
+        })}
+      </div>
+
+      <div style={{maxWidth:580,margin:"0 auto",padding:"20px 16px 100px"}}>
 
 
         {/* ══════════════════════════════
