@@ -286,6 +286,7 @@ export default function App() {
   const [editingStep,setEditingStep] = useState(null);
   const [savedLogs,setSavedLogs]       = useState([]);
   const [viewingLog,setViewingLog]     = useState(null);
+  const [swipedLogId,setSwipedLogId]   = useState(null); // id of log currently swiped open
   const [steamDone,setSteamDone]       = useState(false);
   const [foldNotes,setFoldNotes]       = useState({});  // {foldN: {note, photo}}
   const [foldPhotos,setFoldPhotos]     = useState({});  // {foldN: src}
@@ -583,17 +584,19 @@ export default function App() {
         </div>
       </nav>
 
-      {/* BOTTOM TAB BAR — TrueCoach style */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",borderTop:"none",paddingBottom:"env(safe-area-inset-bottom)"}}>
-        <div style={{display:"flex",height:76,alignItems:"center",padding:"8px 4px 8px"}}>
+      {/* BOTTOM TAB BAR */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",paddingBottom:"env(safe-area-inset-bottom)"}}>
+        <div style={{display:"flex",alignItems:"stretch",height:60,padding:"0 12px"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
             return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
-              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"none",border:"none",padding:"4px 2px",minWidth:0}}>
-              <div style={{width:42,height:32,borderRadius:16,background:active?"rgba(255,255,255,0.12)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s",color:active?"#FFFFFF":"rgba(255,255,255,0.4)"}}>
-                {icon}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,background:"none",border:"none",padding:"8px 2px 8px",minWidth:0}}>
+              <div style={{width:28,height:28,borderRadius:14,background:active?"rgba(255,255,255,0.15)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <div style={{width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.45)",flexShrink:0}}>
+                  {icon}
+                </div>
               </div>
-              <span style={{fontSize:10,fontWeight:active?700:500,color:active?"#FFFFFF":"rgba(255,255,255,0.4)",letterSpacing:"0.01em",whiteSpace:"nowrap"}}>{l}</span>
+              <span style={{fontSize:10,fontWeight:active?600:400,color:active?"#FFFFFF":"rgba(255,255,255,0.45)",letterSpacing:"0.01em",whiteSpace:"nowrap",lineHeight:1.2}}>{l}</span>
             </button>;
           })}
         </div>
@@ -1369,18 +1372,41 @@ export default function App() {
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {savedLogs.map(log=>{
                 const dMin = log.endTime&&log.startTime ? Math.round((log.endTime-log.startTime)/60000) : null;
-                return <button key={log.id} onClick={()=>setViewingLog(log.id)}
-                  style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName}</div>
-                    <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
-                      {new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
-                      {dMin?` · ${Math.floor(dMin/60)}h ${dMin%60}m`:""}
+                const isOpen = swipedLogId === log.id;
+                const DELETE_W = 72;
+                let touchStartX = 0;
+                return (
+                  <div key={log.id} style={{position:"relative",marginBottom:8,borderRadius:14,overflow:"hidden"}}>
+                    {/* Delete button revealed underneath */}
+                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"0 14px 14px 0"}}>
+                      <button onClick={()=>{deleteLogDB(log.id);setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));setSwipedLogId(null);}}
+                        style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 12px"}}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        <span style={{fontSize:10,fontWeight:600}}>Delete</span>
+                      </button>
                     </div>
-                    {log.sessionNotes&&<div style={{fontSize:12,color:"#606c38",marginTop:3,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.sessionNotes}</div>}
+                    {/* Swipeable row */}
+                    <div
+                      onTouchStart={e=>{ touchStartX=e.touches[0].clientX; }}
+                      onTouchEnd={e=>{
+                        const dx = touchStartX - e.changedTouches[0].clientX;
+                        if(dx > 40) setSwipedLogId(log.id);
+                        else if(dx < -20) setSwipedLogId(null);
+                      }}
+                      onClick={()=>{ if(isOpen){setSwipedLogId(null);} else {setViewingLog(log.id);} }}
+                      style={{background:"#FFFFFF",borderRadius:14,padding:"14px 16px",border:"1px solid #E0DED8",textAlign:"left",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transform:isOpen?`translateX(-${DELETE_W}px)`:"translateX(0)",transition:"transform 0.22s cubic-bezier(0.2,0,0,1)",position:"relative",zIndex:1}}>
+                      <div>
+                        <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName}</div>
+                        <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
+                          {new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
+                          {dMin?` · ${Math.floor(dMin/60)}h ${dMin%60}m`:""}
+                        </div>
+                        {log.sessionNotes&&<div style={{fontSize:12,color:"#606c38",marginTop:3,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.sessionNotes}</div>}
+                      </div>
+                      <div style={{fontSize:13,color:"#6E6E6E",flexShrink:0,marginLeft:12}}>→</div>
+                    </div>
                   </div>
-                  <div style={{fontSize:13,color:"#6E6E6E",flexShrink:0,marginLeft:12}}>→</div>
-                </button>;
+                );
               })}
             </div>
           ):(
