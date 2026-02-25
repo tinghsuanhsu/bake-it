@@ -249,7 +249,7 @@ const fmtTime = s => { if(s<=0)return"0:00"; const h=Math.floor(s/3600),m=Math.f
 const fmtDur  = min => { if(min<60)return`${min}m`; const h=Math.floor(min/60),m=min%60; return m?`${h}h ${m}m`:`${h}h`; };
 const bkPct   = (g,base) => base?((g/base)*100).toFixed(1):"—";
 const timeStr = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-const uid     = () => Math.random().toString(36).slice(2,9);
+const uid     = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,9));
 
 /* ─── PRIMITIVES ─────────────────────────────────── */
 const Card = ({children,style={}}) => <div style={{background:"#FFFFFF",borderRadius:20,border:"1px solid #E0DED8",padding:20,marginBottom:12,boxShadow:"0 1px 8px rgba(0,0,0,0.06)",...style}}>{children}</div>;
@@ -343,6 +343,8 @@ export default function App() {
   // ── DB: loading state ────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
   const [dbError,   setDbError]   = useState(null);
+  const [syncStatus,setSyncStatus] = useState('idle');
+  const [isOffline,setIsOffline] = useState(false);
 
   // ── DB: load recipes + logs on mount ─────────────────
 
@@ -355,14 +357,20 @@ export default function App() {
         body: JSON.stringify(recipe),
       });
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Recipe save failed');
+      setSyncStatus('saved');
       console.log('[BakeIt] saveRecipe', recipe.name, '→', json);
-    } catch (e) { console.warn('[BakeIt] saveRecipe failed:', e); }
+    } catch (e) { setSyncStatus('error'); console.warn('[BakeIt] saveRecipe failed:', e); }
   }, []);
 
   // ── DB: delete recipe ─────────────────────────────────
   const deleteRecipeDB = useCallback(async (id) => {
-    try { await fetch(`/api/recipes/${id}`, { method: 'DELETE' }); }
-    catch (e) { console.warn('Delete recipe failed:', e); }
+    try {
+      const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete recipe failed');
+      setSyncStatus('saved');
+    }
+    catch (e) { setSyncStatus('error'); console.warn('Delete recipe failed:', e); }
   }, []);
 
   // ── DB: save bake log ─────────────────────────────────
@@ -374,19 +382,26 @@ export default function App() {
         body: JSON.stringify(log),
       });
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Log save failed');
+      setSyncStatus('saved');
       console.log('[BakeIt] saveBakeLog', log.recipeName||log.id, '→', json);
-    } catch (e) { console.warn('[BakeIt] saveBakeLog failed:', e); }
+    } catch (e) { setSyncStatus('error'); console.warn('[BakeIt] saveBakeLog failed:', e); }
   }, []);
 
   // ── DB: delete log ────────────────────────────────────
   const deleteLogDB = useCallback(async (id) => {
-    try { await fetch(`/api/logs/${id}`, { method: 'DELETE' }); }
-    catch (e) { console.warn('Delete log failed:', e); }
+    try {
+      const res = await fetch(`/api/logs/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete log failed');
+      setSyncStatus('saved');
+    }
+    catch (e) { setSyncStatus('error'); console.warn('Delete log failed:', e); }
   }, []);
 
   // ── DB: auto-save recipes on change (debounced) ───────
   const recipeSaveTimer = useRef({});
   const scheduleRecipeSave = useCallback((recipe) => {
+    setSyncStatus('saving');
     clearTimeout(recipeSaveTimer.current[recipe.id]);
     recipeSaveTimer.current[recipe.id] = setTimeout(() => saveRecipe(recipe), 1200);
   }, [saveRecipe]);
@@ -394,6 +409,7 @@ export default function App() {
   // ── DB: auto-save logs on change (debounced) ──────────
   const logSaveTimer = useRef({});
   const scheduleLogSave = useCallback((log) => {
+    setSyncStatus('saving');
     clearTimeout(logSaveTimer.current[log.id]);
     logSaveTimer.current[log.id] = setTimeout(() => saveBakeLog(log), 1200);
   }, [saveBakeLog]);
@@ -410,7 +426,7 @@ export default function App() {
       {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"24",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
     ];
 
-    fetch('/api/db-init')
+    fetch('/api/db-init').catch(() => null)
       .then(() => Promise.all([
         fetch('/api/recipes').then(r => r.json()),
         fetch('/api/logs').then(r => r.json()),
@@ -490,6 +506,18 @@ export default function App() {
       });
   }, []);
 
+  useEffect(() => {
+    const update = () => setIsOffline(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+
 
   // ingredients page state
   const [flourSearch,setFlourSearch]   = useState("");
@@ -533,13 +561,6 @@ export default function App() {
 
   useEffect(()=>{ if(!bakeStarted)return; const id=setInterval(()=>setTick(t=>t+1),1000); return()=>clearInterval(id); },[bakeStarted]);
 
-  // ── Request notification permission on first bake ────
-  useEffect(() => {
-    if (bakeStarted && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, [bakeStarted]);
-
   // ── Fire alarm when active step timer hits zero ───────
   const alarmFiredRef = useRef({});
   useEffect(() => {
@@ -567,6 +588,9 @@ export default function App() {
   const startBake = recipe => {
     const now=Date.now();
     alarmFiredRef.current = {};
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     setSelectedId(recipe.id); setBakeStarted(true); setBST(now);
     setActiveStep(0); setSST({0:now}); setStepNotes({}); setStepPhotos({}); setSfDone({});
     setView(VIEWS.BAKE);
@@ -715,15 +739,21 @@ export default function App() {
 
       {/* TOP NAV — logo + safe area top */}
       <nav style={{background:"#283618",position:"sticky",top:0,zIndex:100,paddingTop:"env(safe-area-inset-top)",borderBottom:"0.5px solid rgba(255,255,255,0.1)"}}>
-        <div style={{height:36}}></div>
+        <div style={{height:44,padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",color:"#fff"}}><strong style={{fontSize:15,letterSpacing:"0.02em"}}>Bake It</strong><div style={{fontSize:11,opacity:0.9}}>{isOffline?"Offline":syncStatus==="saving"?"Syncing…":syncStatus==="error"?"Sync failed":"Synced"}</div></div>
       </nav>
+
+      {dbError && (
+        <div style={{background:"#fff2f2",color:"#9E3A3A",padding:"10px 16px",fontSize:13,borderBottom:"1px solid #f1d6d6"}}>
+          Could not fully sync with the server. You can continue locally and retry later.
+        </div>
+      )}
 
       {/* BOTTOM TAB BAR */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:"#283618",borderTop:"0.5px solid rgba(255,255,255,0.1)"}}>
         <div style={{display:"flex",alignItems:"stretch",height:59,padding:"7px 8px 0"}}>
           {TABS.map(({v,l,icon})=>{
             const active=view===v&&!editId;
-            return <button key={v} onClick={()=>{setEditId(null);setView(v);}}
+            return <button key={v} aria-label={`Open ${l}`} onClick={()=>{setEditId(null);setView(v);}}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,background:"none",border:"none",padding:"6px 4px 8px",minWidth:0,cursor:"pointer"}}>
               <div style={{width:23,height:23,display:"flex",alignItems:"center",justifyContent:"center",color:active?"#FFFFFF":"rgba(255,255,255,0.5)",flexShrink:0}}>
                 {icon}

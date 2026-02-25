@@ -1,3 +1,4 @@
+import './globals.css';
 export const metadata = {
   title: 'Bake it',
   description: 'Sourdough baking tracker',
