@@ -331,6 +331,7 @@ export default function App() {
   const [reviewPhotoHandler,setReviewPhotoHandler] = useState(null); // callback fn
   const [photoTarget,setPhotoTarget] = useState(null);
   const fileRef = useRef(null);
+  const dragStepIdx = useRef(null);
 
   // ── DB: loading state ────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
@@ -1023,8 +1024,27 @@ export default function App() {
               const unit=editRecipe.stepUnit?.[s.id]||"min";
               const displayVal=unit==="hr"?+(s.durationMin/60).toFixed(2):s.durationMin;
               const disabled=isAuto&&!editRecipe.autolyseEnabled;
-              return <div key={s.id} style={{borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",opacity:disabled?0.4:1}}>
+              const moveStep=(from,to)=>updE(r=>{
+                const arr=[...r.steps];
+                const [moved]=arr.splice(from,1);
+                arr.splice(to,0,moved);
+                return {...r,steps:arr};
+              });
+              return <div key={s.id}
+                draggable
+                onDragStart={e=>{ e.dataTransfer.effectAllowed="move"; dragStepIdx.current=i; }}
+                onDragEnter={()=>{ if(dragStepIdx.current!==null&&dragStepIdx.current!==i){ moveStep(dragStepIdx.current,i); dragStepIdx.current=i; } }}
+                onDragOver={e=>e.preventDefault()}
+                onDragEnd={()=>{ dragStepIdx.current=null; }}
+                style={{borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",opacity:disabled?0.4:1,background:"#FFFFFF"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px"}}>
+                  {/* Reorder arrows */}
+                  <div style={{display:"flex",flexDirection:"column",gap:1,flexShrink:0}}>
+                    <button onClick={()=>i>0&&moveStep(i,i-1)}
+                      style={{background:"none",border:"none",padding:"1px 3px",cursor:i>0?"pointer":"default",color:i>0?"#ACACAC":"#E0DED8",fontSize:10,lineHeight:1}}>▲</button>
+                    <button onClick={()=>i<editRecipe.steps.length-1&&moveStep(i,i+1)}
+                      style={{background:"none",border:"none",padding:"1px 3px",cursor:i<editRecipe.steps.length-1?"pointer":"default",color:i<editRecipe.steps.length-1?"#ACACAC":"#E0DED8",fontSize:10,lineHeight:1}}>▼</button>
+                  </div>
                   <div style={{width:10,height:10,borderRadius:"50%",background:disabled?"#E0DED8":s.color,flexShrink:0}}/>
                   {/* Step name — always editable */}
                   <input value={s.name} onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,name:e.target.value}:st)}))}
@@ -1039,7 +1059,6 @@ export default function App() {
                       style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:600,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
                   </div>}
                   {!disabled && (s.id==="retard" ? (
-                    /* Retard: overnight on/off + hr input when off */
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       {unit!=="overnight" && <>
                         <input type="text" inputMode="decimal" value={displayVal}
@@ -1551,10 +1570,10 @@ export default function App() {
                 let touchStartX = 0;
                 return (
                   <div key={log.id} style={{position:"relative",marginBottom:0,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
-                    {/* Delete button — rounded bar matching screenshot style */}
-                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"0 16px 16px 0"}}>
+                    {/* Delete button — extends left under the card so no square corners show */}
+                    <div style={{position:"absolute",top:0,right:0,bottom:0,left:"-16px",background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"flex-end",borderRadius:"0 16px 16px 0"}}>
                       <button onClick={()=>{deleteLogDB(log.id);setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));setSwipedLogId(null);}}
-                        style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 12px",cursor:"pointer"}}>
+                        style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 20px 0 12px",cursor:"pointer"}}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                         <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.04em"}}>DELETE</span>
                       </button>
