@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { getDb } from '../../../lib/db';
+import { validateRecipePayload, errorResponse } from '../../../lib/apiValidation';
 
 // GET /api/recipes — list all recipes
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
     const recipes = rows.map(r => ({ id: r.id, ...r.data, name: r.name }));
     return Response.json(recipes);
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return errorResponse(err);
   }
 }
 
@@ -23,7 +24,7 @@ export async function GET() {
 export async function POST(req) {
   const sql = getDb();
   try {
-    const recipe = await req.json();
+    const recipe = validateRecipePayload(await req.json());
     const { id, name, ...rest } = recipe;
     await sql`
       INSERT INTO recipes (id, name, data)
@@ -35,6 +36,6 @@ export async function POST(req) {
     `;
     return Response.json({ ok: true });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return errorResponse(err);
   }
 }

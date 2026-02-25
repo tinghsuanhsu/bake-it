@@ -1,8 +1,22 @@
 export const dynamic = 'force-dynamic';
 
 import { getDb } from '../../../lib/db';
+import { errorResponse } from '../../../lib/apiValidation';
 
-export async function GET() {
+
+function assertInitAccess(req) {
+  if (process.env.NODE_ENV !== 'production') return;
+  const configured = process.env.DB_INIT_TOKEN;
+  const supplied = req.headers.get('x-admin-token');
+  if (!configured || supplied !== configured) {
+    const err = new Error('Forbidden');
+    err.status = 403;
+    throw err;
+  }
+}
+
+export async function GET(req) {
+  assertInitAccess(req);
   const sql = getDb();
   try {
     // ── Recipes table ─────────────────────────────────────────
@@ -55,10 +69,21 @@ export async function GET() {
       `;
     }
 
-    // ── Migration: photos table may exist from old schema — OK to leave ──
+    // ── Photos table ────────────────────────────────────────
+    await sql`
+      CREATE TABLE IF NOT EXISTS photos (
+        id TEXT PRIMARY KEY,
+        log_id TEXT NOT NULL,
+        step_id TEXT,
+        caption TEXT NOT NULL DEFAULT '',
+        image_data TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_photos_log_id ON photos (log_id)`;
 
     return Response.json({ ok: true, message: 'Tables ready' });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return errorResponse(err);
   }
 }
