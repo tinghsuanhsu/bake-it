@@ -1,6 +1,34 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from "react";
 
+/* ─── ALARM SOUND ────────────────────────────────── */
+function playAlarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, start, dur) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(0.4, start + 0.02);
+      g.gain.linearRampToValueAtTime(0, start + dur);
+      o.start(start); o.stop(start + dur + 0.05);
+    };
+    beep(880,  ctx.currentTime,        0.18);
+    beep(880,  ctx.currentTime + 0.22, 0.18);
+    beep(1100, ctx.currentTime + 0.44, 0.28);
+  } catch(e) {}
+}
+
+function fireNotification(title, body) {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/icons/icon-192.png', silent: false });
+    }
+  } catch(e) {}
+}
+
 /* ─── VIEWS ─────────────────────────────────────── */
 const VIEWS = { HOME:"home", RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients" };
 
@@ -250,7 +278,7 @@ function Ring({progress,size=130,stroke=11,color="#5C5C5C",children}){
 const makeRecipe = () => ({
   id: uid(),
   name: "New Recipe",
-  loaves: "2", loafG: "900", ddt: "78",
+  loaves: "2", loafG: "900", ddt: "26",
   ingredients: [
     { id:uid(), type:"flour", flourId:"f2", label:"White Baker's Flour", grams:"1000" },
     { id:uid(), type:"other", flourId:null,  label:"Water",              grams:"750"  },
@@ -263,7 +291,7 @@ const makeRecipe = () => ({
   autolyseEnabled: true,
   stepUnit: Object.fromEntries(DEFAULT_STEPS.map(s=>[s.id,"min"])),
   notes: "",
-  tempUnit: "F",
+  tempUnit: "C",
 });
 
 /* ════════════════════════════════════════════════════
@@ -367,11 +395,11 @@ export default function App() {
     // Stable IDs so defaults can be detected in DB without duplication
     const mkSteps = () => DEFAULT_STEPS.map((st,i)=>({sfCount:0,...st,durationMin:st.duration,color:STEP_COLORS[i]}));
     const STARTER_RECIPES = [
-      {...makeRecipe(),id:"starter-1",name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"78",steps:mkSteps(),ingredients:[{id:"s1-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s1-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s1-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s1-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s1-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."},
-      {...makeRecipe(),id:"starter-2",name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"80",steps:mkSteps(),ingredients:[{id:"s2-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s2-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s2-w",type:"other",flourId:null,label:"Water",grams:"780"},{id:"s2-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s2-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."},
-      {...makeRecipe(),id:"starter-3",name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"76",steps:mkSteps(),ingredients:[{id:"s3-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:"s3-f2",type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:"s3-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s3-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s3-l",type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."},
-      {...makeRecipe(),id:"starter-4",name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"77",steps:mkSteps(),ingredients:[{id:"s4-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:"s4-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:"s4-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s4-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s4-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."},
-      {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"76",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
+      {...makeRecipe(),id:"starter-1",name:"Classic Country Loaf",loaves:"2",loafG:"900",ddt:"26",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s1-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s1-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s1-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s1-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s1-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"A reliable everyday loaf. 75% hydration, 10% wholemeal for flavour and crust colour. Retard overnight in the fridge for deeper sour notes."},
+      {...makeRecipe(),id:"starter-2",name:"Tartine-Style 78%",loaves:"1",loafG:"950",ddt:"27",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s2-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"900"},{id:"s2-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"100"},{id:"s2-w",type:"other",flourId:null,label:"Water",grams:"780"},{id:"s2-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s2-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Based on the Tartine country bread. High hydration produces an open, irregular crumb with a glossy crust. Requires confident shaping."},
+      {...makeRecipe(),id:"starter-3",name:"Light Rye Sourdough",loaves:"2",loafG:"800",ddt:"24",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s3-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"800"},{id:"s3-f2",type:"flour",flourId:"f15",label:"Light Rye Flour",grams:"200"},{id:"s3-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s3-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s3-l",type:"other",flourId:null,label:"Levain",grams:"220"}],notes:"20% rye adds complexity and speeds fermentation. Slightly stickier dough — wet hands for folding. Excellent with aged cheddar."},
+      {...makeRecipe(),id:"starter-4",name:"Whole Wheat 50%",loaves:"2",loafG:"850",ddt:"25",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s4-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"500"},{id:"s4-f2",type:"flour",flourId:"f11",label:"Wholemeal Flour",grams:"500"},{id:"s4-w",type:"other",flourId:null,label:"Water",grams:"750"},{id:"s4-s",type:"other",flourId:null,label:"Salt",grams:"20"},{id:"s4-l",type:"other",flourId:null,label:"Levain",grams:"200"}],notes:"Equal parts wholemeal and white. Nutty, wheaty flavour with a tight, even crumb. Autolyse is important — wholemeal absorbs slowly."},
+      {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"24",tempUnit:"C",steps:mkSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
     ];
 
     fetch('/api/db-init')
@@ -391,14 +419,21 @@ export default function App() {
           { id:"starter_peak", name:"Starter Peak", duration:480, durationMin:480, sfCount:0, color:STEP_COLORS[0] },
           { id:"make_levain",  name:"Make Levain",  duration:20,  durationMin:20,  sfCount:0, color:STEP_COLORS[1] },
         ];
+        // DDT corrections: old F values → new C values per recipe
+        const STARTER_DDT_C = { "starter-1":"26","starter-2":"27","starter-3":"24","starter-4":"25","starter-5":"24" };
         const patchedDbRecipes = dbRecipes.map(r => {
           const starterIds = new Set(STARTER_RECIPES.map(s => s.id));
           if (!starterIds.has(r.id)) return r; // user recipe — don't touch
-          const stepIds = new Set((r.steps||[]).map(s => s.id));
+          let patched = { ...r };
+          // Patch missing steps
+          const stepIds = new Set((patched.steps||[]).map(s => s.id));
           const missing = PREPEND_STEPS.filter(s => !stepIds.has(s.id));
-          if (missing.length === 0) return r;
-          const patched = { ...r, steps: [...missing, ...(r.steps||[])] };
-          saveRecipe(patched);
+          if (missing.length > 0) patched = { ...patched, steps: [...missing, ...(patched.steps||[])] };
+          // Patch tempUnit and ddt if still in Fahrenheit
+          if (!patched.tempUnit || patched.tempUnit === "F") {
+            patched = { ...patched, tempUnit: "C", ddt: STARTER_DDT_C[r.id] || "26" };
+          }
+          if (missing.length > 0 || !r.tempUnit || r.tempUnit === "F") saveRecipe(patched);
           return patched;
         });
 
@@ -406,12 +441,12 @@ export default function App() {
           ? [...patchedDbRecipes, ...missingStarters]
           : STARTER_RECIPES;
         setRecipes(allRecipesLoaded);
-        if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData);
+        if (Array.isArray(logData) && logData.length > 0) setSavedLogs(logData.filter(l => l.id !== '__active_bake__'));
         // Restore active bake AFTER recipes are loaded so bakeRecipe resolves
-        try {
-          const saved = localStorage.getItem('bakeIt_activeBake');
-          if (saved) {
-            const b = JSON.parse(saved);
+        // Try localStorage first, then fall back to DB-persisted state
+        const restoreBake = (raw) => {
+          try {
+            const b = JSON.parse(raw);
             const recipeExists = allRecipesLoaded.find(r => r.id === b.selectedId);
             if (b.bakeStarted && b.selectedId && recipeExists) {
               setSelectedId(b.selectedId);
@@ -424,9 +459,21 @@ export default function App() {
               setFoldNotes(b.foldNotes||{});
               setSteamDone(b.steamDone||false);
               setView(VIEWS.BAKE);
+              return true;
             }
-          }
+          } catch(e) {}
+          return false;
+        };
+        let restored = false;
+        try {
+          const lsRaw = localStorage.getItem('bakeIt_activeBake');
+          if (lsRaw) restored = restoreBake(lsRaw);
         } catch(e) {}
+        // Fall back to DB state if localStorage didn't work
+        if (!restored) {
+          const dbActiveBake = logData.find(l => l.id === '__active_bake__');
+          if (dbActiveBake?._activeBakeState) restoreBake(dbActiveBake._activeBakeState);
+        }
         setDbLoading(false);
       })
       .catch(err => {
@@ -439,6 +486,8 @@ export default function App() {
   // ingredients page state
   const [flourSearch,setFlourSearch]   = useState("");
   const [flourFilter,setFlourFilter]   = useState("All");
+  const [recipeSearch,setRecipeSearch] = useState("");
+  const [logSearch,setLogSearch]       = useState("");
   const [expandedFlour,setExpandedFlour] = useState(null);
   const [userFlours,setUserFlours]       = useState([]);
   const [showAddFlour,setShowAddFlour]   = useState(false);
@@ -447,23 +496,54 @@ export default function App() {
 
   // ── Persist bake state across refresh ───────────────
   // (Restore happens inside DB load effect, after recipes are available)
-  // Save on every change
+  // Save on every change — write to both localStorage AND a dedicated DB key via logs API
   useEffect(() => {
     if (!bakeStarted) {
       localStorage.removeItem('bakeIt_activeBake');
+      // Clear DB persisted bake state
+      fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: '__active_bake__', _activeBakeState: null, _deleted: true }),
+      }).catch(()=>{});
       return;
     }
-    try {
-      localStorage.setItem('bakeIt_activeBake', JSON.stringify({
-        bakeStarted, selectedId,
-        bakeStartTime, activeStep,
-        stepStartTimes, stepNotes,
-        sessionNotes, foldNotes, steamDone,
-      }));
-    } catch(e) {}
+    const state = {
+      bakeStarted, selectedId,
+      bakeStartTime, activeStep,
+      stepStartTimes, stepNotes,
+      sessionNotes, foldNotes, steamDone,
+    };
+    try { localStorage.setItem('bakeIt_activeBake', JSON.stringify(state)); } catch(e) {}
+    // Also persist to DB so it survives browser storage clears (e.g. overnight on mobile)
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: JSON.stringify(state) }),
+    }).catch(()=>{});
   }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone]);
 
   useEffect(()=>{ if(!bakeStarted)return; const id=setInterval(()=>setTick(t=>t+1),1000); return()=>clearInterval(id); },[bakeStarted]);
+
+  // ── Request notification permission on first bake ────
+  useEffect(() => {
+    if (bakeStarted && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [bakeStarted]);
+
+  // ── Fire alarm when active step timer hits zero ───────
+  const alarmFiredRef = useRef({});
+  useEffect(() => {
+    if (!bakeStarted || activeStep == null || !bakeRecipe) return;
+    const rem = remaining(activeStep);
+    if (rem === 0 && !alarmFiredRef.current[activeStep]) {
+      alarmFiredRef.current[activeStep] = true;
+      playAlarm();
+      const stepName = bakeRecipe.steps[activeStep]?.name || 'Step';
+      fireNotification('⏱ Step complete!', `${stepName} is done. Time to move on.`);
+    }
+  }, [tick, activeStep, bakeStarted]);
 
   const bakeRecipe = selectedId ? recipes.find(r=>r.id===selectedId) : null;
   const editRecipe = editId     ? recipes.find(r=>r.id===editId)     : null;
@@ -478,6 +558,7 @@ export default function App() {
 
   const startBake = recipe => {
     const now=Date.now();
+    alarmFiredRef.current = {};
     setSelectedId(recipe.id); setBakeStarted(true); setBST(now);
     setActiveStep(0); setSST({0:now}); setStepNotes({}); setStepPhotos({}); setSfDone({});
     setView(VIEWS.BAKE);
@@ -548,6 +629,12 @@ export default function App() {
     };
     setSavedLogs(prev => [log, ...prev]);
     saveBakeLog(log);
+    // Clear persisted active bake from DB
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: null, _deleted: true }),
+    }).catch(()=>{});
     // reset bake state
     setSelectedId(null);
     setBakeStarted(false);
@@ -718,7 +805,7 @@ export default function App() {
         </div>}
 
         {view===VIEWS.RECIPES && !editId && <div className="su">
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14}}>
             <div>
               <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em",marginBottom:2}}>Recipes</div>
               <div style={{fontSize:14,color:"#606c38"}}>{recipes.length} saved</div>
@@ -726,7 +813,14 @@ export default function App() {
             <button onClick={addRecipe} style={{padding:"10px 18px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:600}}>+ New</button>
           </div>
 
-          {recipes.map(r=>{
+          {/* Search */}
+          <div style={{position:"relative",marginBottom:16}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9E9E90" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={recipeSearch||""} onChange={e=>setRecipeSearch(e.target.value)} placeholder="Search recipes…"
+              style={{width:"100%",background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:12,padding:"10px 12px 10px 36px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          </div>
+
+          {(recipes.filter(r=>!recipeSearch||(r.name||"").toLowerCase().includes(recipeSearch.toLowerCase()))).map(r=>{
             const primaryFlourIng = r.ingredients.find(i=>i.type==="flour");
             const primaryFlour    = primaryFlourIng?.flourId ? FLOUR_DB.find(f=>f.id===primaryFlourIng.flourId) : null;
             const flourG          = r.ingredients.filter(i=>i.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
@@ -743,7 +837,7 @@ export default function App() {
                 </div>
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
                   <Badge color="#606c38">{r.loaves} × {r.loafG}g</Badge>
-                  {r.ddt && <Badge color="#606c38">DDT {r.tempUnit==="C"?Math.round((parseInt(r.ddt)-32)*5/9):parseInt(r.ddt)}°{r.tempUnit||"F"}</Badge>}
+                  {r.ddt && <Badge color="#606c38">DDT {parseInt(r.ddt)}°{r.tempUnit||"C"}</Badge>}
                   <Badge color="#5C5C5C">{fmtDur(totalMin)}</Badge>
                   {primaryFlour && <Badge color="#5C5C5C">{primaryFlour.brand} · {primaryFlour.protein}g protein</Badge>}
                 </div>
@@ -766,6 +860,7 @@ export default function App() {
             </Card>;
           })}
           {recipes.length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No recipes yet — tap + New to start.</p></Card>}
+          {recipes.length>0 && recipeSearch && recipes.filter(r=>(r.name||"").toLowerCase().includes(recipeSearch.toLowerCase())).length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No recipes match "{recipeSearch}".</p></Card>}
         </div>}
 
         {/* ══════════════════════════════
@@ -797,15 +892,15 @@ export default function App() {
                   <Inp type="number" value={editRecipe.ddt} style={{flex:1}}
                     onChange={e=>updE(r=>({...r,ddt:e.target.value}))}/>
                   <div style={{display:"flex",gap:2,flexShrink:0}}>
-                    {["F","C"].map(u=><button key={u}
+                    {["C","F"].map(u=><button key={u}
                       onClick={()=>{
-                        const cur=editRecipe.tempUnit||"F";
+                        const cur=editRecipe.tempUnit||"C";
                         if(u===cur)return;
-                        const curVal=parseInt(editRecipe.ddt)||78;
+                        const curVal=parseInt(editRecipe.ddt)||26;
                         const converted=u==="C"?Math.round((curVal-32)*5/9):Math.round(curVal*9/5+32);
                         updE(r=>({...r,tempUnit:u,ddt:String(converted)}));
                       }}
-                      style={{fontSize:11,fontWeight:600,padding:"3px 7px",borderRadius:6,background:(editRecipe.tempUnit||"F")===u?"#283618":"transparent",color:(editRecipe.tempUnit||"F")===u?"#F8F8F6":"#ACACAC",border:"none",transition:"all 0.15s",cursor:"pointer"}}>°{u}</button>)}
+                      style={{fontSize:11,fontWeight:600,padding:"3px 7px",borderRadius:6,background:(editRecipe.tempUnit||"C")===u?"#283618":"transparent",color:(editRecipe.tempUnit||"C")===u?"#F8F8F6":"#ACACAC",border:"none",transition:"all 0.15s",cursor:"pointer"}}>°{u}</button>)}
                   </div>
                 </div>
               </div>
@@ -925,13 +1020,16 @@ export default function App() {
           <Card style={{padding:0,overflow:"hidden"}}>
             {editRecipe.steps.map((s,i)=>{
               const isBulk=s.id==="bulk",isAuto=s.id==="autolyse";
-              const unit=editRecipe.stepUnit[s.id]||"min";
+              const unit=editRecipe.stepUnit?.[s.id]||"min";
               const displayVal=unit==="hr"?+(s.durationMin/60).toFixed(2):s.durationMin;
               const disabled=isAuto&&!editRecipe.autolyseEnabled;
               return <div key={s.id} style={{borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",opacity:disabled?0.4:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px"}}>
                   <div style={{width:10,height:10,borderRadius:"50%",background:disabled?"#E0DED8":s.color,flexShrink:0}}/>
-                  <span style={{flex:1,fontSize:14,fontWeight:500}}>{s.name}</span>
+                  {/* Step name — always editable */}
+                  <input value={s.name} onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,name:e.target.value}:st)}))}
+                    style={{flex:1,fontSize:14,fontWeight:500,background:"transparent",border:"none",borderBottom:"1px solid #E0DED8",outline:"none",padding:"2px 0",color:"#283618",minWidth:0,fontFamily:"inherit"}}
+                    placeholder="Step name"/>
                   {isAuto && <button onClick={()=>updE(r=>({...r,autolyseEnabled:!r.autolyseEnabled}))}
                     style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:editRecipe.autolyseEnabled?"#283618":"#E0DED8",color:editRecipe.autolyseEnabled?"#F8F8F6":"#606c38"}}>{editRecipe.autolyseEnabled?"On":"Off"}</button>}
                   {isBulk && <div style={{display:"flex",alignItems:"center",gap:4}}>
@@ -944,7 +1042,7 @@ export default function App() {
                     /* Retard: overnight on/off + hr input when off */
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       {unit!=="overnight" && <>
-                        <input type="text" inputMode="numeric" value={displayVal}
+                        <input type="text" inputMode="decimal" value={displayVal}
                           onFocus={e=>e.target.select()}
                           onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
                           onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
@@ -963,7 +1061,7 @@ export default function App() {
                     </div>
                   ) : (
                     <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <input type="text" inputMode="numeric" value={displayVal}
+                      <input type="text" inputMode="decimal" value={displayVal}
                         onFocus={e=>e.target.select()}
                         onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
                         onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
@@ -974,9 +1072,25 @@ export default function App() {
                       </div>
                     </div>
                   ))}
+                  {/* Delete step button */}
+                  <button onClick={()=>updE(r=>({...r,steps:r.steps.filter((_,j)=>j!==i)}))}
+                    style={{width:24,height:24,borderRadius:12,background:"transparent",border:"1px solid #E0DED8",color:"#9E3A3A",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1,cursor:"pointer"}}>
+                    −
+                  </button>
                 </div>
               </div>;
             })}
+            {/* Add step */}
+            <button onClick={()=>{
+              const id=uid();
+              const colorIdx=editRecipe.steps.length % STEP_COLORS.length;
+              updE(r=>({...r,
+                steps:[...r.steps,{id,name:"New Step",durationMin:30,sfCount:0,color:STEP_COLORS[colorIdx],custom:true}],
+                stepUnit:{...r.stepUnit,[id]:"min"},
+              }));
+            }} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",borderTop:"0.5px solid #E0DED8",color:"#606c38",fontSize:13,fontWeight:600,textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:18,lineHeight:1}}>+</span> Add Step
+            </button>
           </Card>
 
           <SecH>Recipe Notes</SecH>
@@ -1013,7 +1127,7 @@ export default function App() {
                 const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
                 const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
                 return <div style={{fontSize:13,color:"#606c38",marginTop:3}}>
-                  Started {timeStr(bakeStartTime)} · {bakeRecipe.loaves} × {bakeRecipe.loafG}g · DDT {bakeRecipe.ddt}°{bakeRecipe.tempUnit||"F"}
+                  Started {timeStr(bakeStartTime)} · {bakeRecipe.loaves} × {bakeRecipe.loafG}g · DDT {bakeRecipe.ddt}°{bakeRecipe.tempUnit||"C"}
                   {estStr&&<span> · Est. finish <strong style={{color:"#283618"}}>{estStr}</strong></span>}
                 </div>;
               })()}
@@ -1222,6 +1336,11 @@ export default function App() {
                     <div style={{fontSize:13,color:"#606c38",marginTop:2}}>{new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"})}{durationMin?` · ${Math.floor(durationMin/60)}h ${durationMin%60}m`:""}</div>
                   )}
                 </div>
+                {/* Favourite star */}
+                <button onClick={()=>updateLog({favourite:!log.favourite})}
+                  style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:log.favourite?"#E8A020":"#D0D0C8",flexShrink:0,padding:"4px"}}>
+                  {log.favourite?"★":"☆"}
+                </button>
               </div>
 
               {log.isManual && (
@@ -1356,7 +1475,7 @@ export default function App() {
           </div>
 
           {/* ── Log list + active session ────────────── */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:4}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12}}>
             <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em"}}>Bake Log</div>
             <button onClick={()=>{
               const id=uid();
@@ -1372,7 +1491,14 @@ export default function App() {
               setViewingLog(id);
             }} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>+ Add past bake</button>
           </div>
-          <div style={{fontSize:14,color:"#606c38",marginBottom:20}}>{savedLogs.length} session{savedLogs.length!==1?"s":""} recorded</div>
+          <div style={{fontSize:14,color:"#606c38",marginBottom:14}}>{savedLogs.filter(l=>l.id!=='__active_bake__').length} session{savedLogs.filter(l=>l.id!=='__active_bake__').length!==1?"s":""} recorded</div>
+
+          {/* Search */}
+          <div style={{position:"relative",marginBottom:16}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9E9E90" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={logSearch} onChange={e=>setLogSearch(e.target.value)} placeholder="Search bakes…"
+              style={{width:"100%",background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:12,padding:"10px 12px 10px 36px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          </div>
 
           {/* Active session */}
           {bakeStarted&&bakeRecipe&&<>
@@ -1416,21 +1542,21 @@ export default function App() {
           </>}
 
           {/* Past logs */}
-          {savedLogs.length>0 ? (
+          {savedLogs.filter(l=>l.id!=='__active_bake__').length>0 ? (
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {savedLogs.map(log=>{
+              {savedLogs.filter(l=>l.id!=='__active_bake__' && (!logSearch||(l.recipeName||"").toLowerCase().includes(logSearch.toLowerCase()))).map(log=>{
                 const dMin = log.endTime&&log.startTime ? Math.round((log.endTime-log.startTime)/60000) : null;
                 const isOpen = swipedLogId === log.id;
-                const DELETE_W = 72;
+                const DELETE_W = 80;
                 let touchStartX = 0;
                 return (
-                  <div key={log.id} style={{position:"relative",marginBottom:8,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
-                    {/* Delete button revealed underneath */}
-                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <div key={log.id} style={{position:"relative",marginBottom:0,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
+                    {/* Delete button — rounded bar matching screenshot style */}
+                    <div style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:"0 16px 16px 0"}}>
                       <button onClick={()=>{deleteLogDB(log.id);setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));setSwipedLogId(null);}}
-                        style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 12px"}}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                        <span style={{fontSize:10,fontWeight:600}}>Delete</span>
+                        style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 12px",cursor:"pointer"}}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.04em"}}>DELETE</span>
                       </button>
                     </div>
                     {/* Swipeable row */}
@@ -1442,20 +1568,36 @@ export default function App() {
                         else if(dx < -20) setSwipedLogId(null);
                       }}
                       onClick={()=>{ if(isOpen){setSwipedLogId(null);} else {setViewingLog(log.id);} }}
-                      style={{background:"#FFFFFF",borderRadius:0,padding:"14px 16px",border:"1px solid #E0DED8",borderRadius:16,textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transform:isOpen?`translateX(-${DELETE_W}px)`:"translateX(0)",transition:"transform 0.22s cubic-bezier(0.2,0,0,1)",position:"relative",zIndex:1,minWidth:"100%"}}>
-                      <div>
-                        <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName}</div>
+                      style={{background:"#FFFFFF",padding:"14px 16px",border:"1px solid #E0DED8",borderRadius:16,textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transform:isOpen?`translateX(-${DELETE_W}px)`:"translateX(0)",transition:"transform 0.22s cubic-bezier(0.2,0,0,1)",position:"relative",zIndex:1,minWidth:"100%"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:15,fontWeight:600,color:"#283618"}}>{log.recipeName||"Untitled"}</div>
                         <div style={{fontSize:12,color:"#6E6E6E",marginTop:3}}>
                           {new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}
                           {dMin?` · ${Math.floor(dMin/60)}h ${dMin%60}m`:""}
                         </div>
                         {log.sessionNotes&&<div style={{fontSize:12,color:"#606c38",marginTop:3,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{log.sessionNotes}</div>}
                       </div>
-                      <div style={{fontSize:13,color:"#6E6E6E",flexShrink:0,marginLeft:12}}>→</div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,marginLeft:10}}>
+                        {/* Favourite button */}
+                        <button onClick={e=>{
+                          e.stopPropagation();
+                          setSavedLogs(prev=>{
+                            const next=prev.map(l=>l.id===log.id?{...l,favourite:!l.favourite}:l);
+                            const changed=next.find(l=>l.id===log.id);
+                            if(changed) scheduleLogSave(changed);
+                            return next;
+                          });
+                        }} style={{background:"none",border:"none",padding:"4px",cursor:"pointer",fontSize:20,lineHeight:1,color:log.favourite?"#E8A020":"#D0D0C8"}}>
+                          {log.favourite?"★":"☆"}
+                        </button>
+                        <span style={{fontSize:13,color:"#6E6E6E"}}>→</span>
+                      </div>
                     </div>
                   </div>
                 );
               })}
+              {logSearch && savedLogs.filter(l=>l.id!=='__active_bake__' && (l.recipeName||"").toLowerCase().includes(logSearch.toLowerCase())).length===0 &&
+                <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>No bakes match "{logSearch}".</p></Card>}
             </div>
           ):(
             <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>Finish a bake to save it here.</p></Card>
