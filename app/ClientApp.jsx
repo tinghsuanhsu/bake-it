@@ -332,11 +332,13 @@ export default function App() {
   const [photoTarget,setPhotoTarget] = useState(null);
   const fileRef = useRef(null);
   const dragStepIdx = useRef(null);
-  // Long-press drag-to-reorder state
-  const [dragStep, setDragStep] = useState(null); // {idx, y, startY, stepHeight}
-  const [dragOverStep, setDragOverStep] = useState(null);
+  // All-ref drag state — no stale closure issues
+  const dragRef = useRef(null); // {idx, floatY}
+  const dragOverRef = useRef(null);
   const longPressTimer = useRef(null);
   const stepsListRef = useRef(null);
+  const [dragStep, setDragStep] = useState(null); // only for re-render trigger
+  const [dragOverStep, setDragOverStep] = useState(null);
 
   // ── DB: loading state ────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
@@ -1021,9 +1023,9 @@ export default function App() {
             </div>
           </Card>
 
-          {/* Steps */}
+          {/* Steps — long-press drag to reorder */}
           <SecH>Step Durations · <span style={{color:"#E0DED8",fontWeight:400}}>{fmtDur((editRecipe.autolyseEnabled?editRecipe.steps:editRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0))} total</span></SecH>
-          <Card style={{padding:0,overflow:"hidden",position:"relative"}}>
+          <Card style={{padding:0,overflow:"hidden"}}>
             <div ref={stepsListRef}>
             {editRecipe.steps.map((s,i)=>{
               const isBulk=s.id==="bulk",isAuto=s.id==="autolyse";
@@ -1032,40 +1034,78 @@ export default function App() {
               const disabled=isAuto&&!editRecipe.autolyseEnabled;
               const isDragging = dragStep?.idx===i;
               const isDropTarget = dragOverStep===i && dragStep?.idx!==i;
-
-              const handleLongPressStart = (e) => {
-                const touch = e.touches?.[0];
-                const clientY = touch ? touch.clientY : e.clientY;
-                const rowEl = e.currentTarget.closest('[data-step-row]');
-                const stepHeight = rowEl?.getBoundingClientRect().height || 52;
-                longPressTimer.current = setTimeout(()=>{
-                  if(navigator.vibrate) navigator.vibrate(40);
-                  setDragStep({idx:i, y:clientY, startY:clientY, stepHeight});
-                  setDragOverStep(i);
-                }, 400);
-              };
-              const handleLongPressCancel = () => {
-                clearTimeout(longPressTimer.current);
-              };
-
               return (
                 <div key={s.id} data-step-row
-                  onMouseEnter={()=>{ if(dragStep&&dragStep.idx!==i) setDragOverStep(i); }}
-                  style={{
-                    borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",
-                    opacity: isDragging ? 0.3 : disabled ? 0.4 : 1,
-                    background: isDropTarget ? "#F0F5EE" : "#FFFFFF",
-                    transition:"background 0.1s",
-                  }}>
+                  style={{borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",opacity:isDragging?0.25:disabled?0.4:1,background:isDropTarget?"#F0F5EE":"#FFFFFF",transition:"background 0.12s"}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px"}}>
-                    {/* Drag handle — long press here */}
-                    <div
-                      onTouchStart={handleLongPressStart}
-                      onTouchEnd={handleLongPressCancel}
-                      onTouchMove={handleLongPressCancel}
-                      onMouseDown={handleLongPressStart}
-                      onMouseUp={handleLongPressCancel}
-                      style={{cursor:"grab",padding:"6px 4px",color:"#ACACAC",flexShrink:0,touchAction:"manipulation",userSelect:"none"}}
+                    {/* ── Drag handle: long-press activates drag ── */}
+                    <div style={{cursor:"grab",padding:"6px 4px",color:"#BBBBAA",flexShrink:0,touchAction:"none",userSelect:"none",WebkitUserSelect:"none"}}
+                      onTouchStart={e=>{
+                        const t=e.touches[0];
+                        dragRef.current={pending:true, idx:i, startY:t.clientY, floatY:t.clientY, name:s.name, color:s.color};
+                        longPressTimer.current=setTimeout(()=>{
+                          if(!dragRef.current?.pending) return;
+                          dragRef.current.pending=false;
+                          dragRef.current.active=true;
+                          dragOverRef.current=i;
+                          if(navigator.vibrate) navigator.vibrate(30);
+                          setDragStep({idx:i, floatY:dragRef.current.floatY, name:s.name, color:s.color});
+                          setDragOverStep(i);
+                        },350);
+                      }}
+                      onTouchMove={e=>{
+                        if(!dragRef.current) return;
+                        const t=e.touches[0];
+                        // cancel long press if moved before activation
+                        if(dragRef.current.pending && Math.abs(t.clientY-dragRef.current.startY)>6){
+                          clearTimeout(longPressTimer.current);
+                          dragRef.current=null;
+                          return;
+                        }
+                        if(!dragRef.current.active) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dragRef.current.floatY=t.clientY;
+                        // find which row finger is over
+                        const rows=stepsListRef.current?.querySelectorAll('[data-step-row]');
+                        if(rows){
+                          rows.forEach((row,idx)=>{
+                            const r=row.getBoundingClientRect();
+                            if(t.clientY>=r.top && t.clientY<=r.bottom){
+                              dragOverRef.current=idx;
+                              setDragOverStep(idx);
+                            }
+                          });
+                        }
+                        // update ghost position via DOM to avoid re-render lag
+                        const ghost=document.getElementById('step-drag-ghost');
+                        if(ghost) ghost.style.top=t.clientY+'px';
+                      }}
+                      onTouchEnd={()=>{
+                        clearTimeout(longPressTimer.current);
+                        if(!dragRef.current?.active){dragRef.current=null;return;}
+                        const from=dragRef.current.idx;
+                        const to=dragOverRef.current??from;
+                        dragRef.current=null;
+                        dragOverRef.current=null;
+                        setDragStep(null);
+                        setDragOverStep(null);
+                        if(to!==from){
+                          updE(r=>{
+                            const arr=[...r.steps];
+                            const [moved]=arr.splice(from,1);
+                            arr.splice(to,0,moved);
+                            return {...r,steps:arr};
+                          });
+                        }
+                      }}
+                      onTouchCancel={()=>{
+                        clearTimeout(longPressTimer.current);
+                        dragRef.current=null;
+                        dragOverRef.current=null;
+                        setDragStep(null);
+                        setDragOverStep(null);
+                      }}
                     >
                       <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
                         <rect y="0" width="16" height="2" rx="1"/>
@@ -1126,74 +1166,6 @@ export default function App() {
                 </div>
               );
             })}
-            {dragStep && (() => {
-              const onTouchMove = (e) => {
-                const touch = e.touches[0];
-                const listEl = stepsListRef.current;
-                if(listEl) {
-                  const rows = listEl.querySelectorAll('[data-step-row]');
-                  let found = dragStep.idx;
-                  rows.forEach((row,idx)=>{
-                    const rect=row.getBoundingClientRect();
-                    if(touch.clientY>=rect.top && touch.clientY<=rect.bottom) found=idx;
-                  });
-                  if(found!==dragOverStep) setDragOverStep(found);
-                }
-                setDragStep(d=>({...d, floatY: touch.clientY}));
-                e.preventDefault();
-              };
-              const commitDrop = () => {
-                if(dragOverStep!==null && dragOverStep!==dragStep.idx) {
-                  updE(r=>{
-                    const arr=[...r.steps];
-                    const [moved]=arr.splice(dragStep.idx,1);
-                    arr.splice(dragOverStep,0,moved);
-                    return {...r,steps:arr};
-                  });
-                }
-                setDragStep(null);
-                setDragOverStep(null);
-              };
-              return <div key="drag-overlay"
-                onTouchMove={onTouchMove}
-                onTouchEnd={commitDrop}
-                onMouseMove={e=>{
-                  const listEl = stepsListRef.current;
-                  if(!listEl) return;
-                  const rows = listEl.querySelectorAll('[data-step-row]');
-                  let found = dragStep.idx;
-                  rows.forEach((row,idx)=>{
-                    const rect=row.getBoundingClientRect();
-                    if(e.clientY>=rect.top && e.clientY<=rect.bottom) found=idx;
-                  });
-                  setDragOverStep(found);
-                  setDragStep(d=>({...d, floatY: e.clientY}));
-                }}
-                onMouseUp={commitDrop}
-                style={{position:"fixed",inset:0,zIndex:200,touchAction:"none",cursor:"grabbing"}}>
-                <div style={{
-                  position:"fixed",
-                  left:16, right:16,
-                  top: dragStep.floatY ?? dragStep.y,
-                  transform:"translateY(-50%)",
-                  background:"#283618",
-                  borderRadius:12,
-                  padding:"12px 16px",
-                  display:"flex",alignItems:"center",gap:10,
-                  boxShadow:"0 8px 32px rgba(0,0,0,0.25)",
-                  zIndex:201,
-                  pointerEvents:"none",
-                }}>
-                  <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(255,255,255,0.5)">
-                    <rect y="0" width="16" height="2" rx="1"/>
-                    <rect y="5" width="16" height="2" rx="1"/>
-                    <rect y="10" width="16" height="2" rx="1"/>
-                  </svg>
-                  <div style={{width:10,height:10,borderRadius:"50%",background:editRecipe.steps[dragStep.idx]?.color||"#FFFFFF",flexShrink:0}}/>
-                  <span style={{fontSize:14,fontWeight:600,color:"#FFFFFF"}}>{editRecipe.steps[dragStep.idx]?.name}</span>
-                </div>
-              </div>;
-            })()}
             {/* Add step */}
             <button onClick={()=>{
               const id=uid();
@@ -1207,6 +1179,25 @@ export default function App() {
             </button>
             </div>
           </Card>
+          {/* Floating ghost pill — rendered at root level to escape overflow:hidden */}
+          {dragStep && (
+            <div id="step-drag-ghost" style={{
+              position:"fixed", left:16, right:16,
+              top:dragStep.floatY, transform:"translateY(-50%)",
+              background:"#283618", borderRadius:12, padding:"13px 16px",
+              display:"flex", alignItems:"center", gap:10,
+              boxShadow:"0 8px 32px rgba(0,0,0,0.3)", zIndex:9999,
+              pointerEvents:"none",
+            }}>
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(255,255,255,0.4)">
+                <rect y="0" width="16" height="2" rx="1"/>
+                <rect y="5" width="16" height="2" rx="1"/>
+                <rect y="10" width="16" height="2" rx="1"/>
+              </svg>
+              <div style={{width:10,height:10,borderRadius:"50%",background:dragStep.color,flexShrink:0}}/>
+              <span style={{fontSize:14,fontWeight:600,color:"#FFFFFF"}}>{dragStep.name}</span>
+            </div>
+          )}
 
           <SecH>Recipe Notes</SecH>
           <Card>
