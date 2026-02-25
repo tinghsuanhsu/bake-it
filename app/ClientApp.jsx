@@ -332,6 +332,11 @@ export default function App() {
   const [photoTarget,setPhotoTarget] = useState(null);
   const fileRef = useRef(null);
   const dragStepIdx = useRef(null);
+  // Long-press drag-to-reorder state
+  const [dragStep, setDragStep] = useState(null); // {idx, y, startY, stepHeight}
+  const [dragOverStep, setDragOverStep] = useState(null);
+  const longPressTimer = useRef(null);
+  const stepsListRef = useRef(null);
 
   // ── DB: loading state ────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
@@ -542,7 +547,7 @@ export default function App() {
       alarmFiredRef.current[activeStep] = true;
       playAlarm();
       const stepName = bakeRecipe.steps[activeStep]?.name || 'Step';
-      fireNotification('⏱ Step complete!', `${stepName} is done. Time to move on.`);
+      fireNotification('Step complete', `${stepName} is done.`);
     }
   }, [tick, activeStep, bakeStarted]);
 
@@ -1018,87 +1023,177 @@ export default function App() {
 
           {/* Steps */}
           <SecH>Step Durations · <span style={{color:"#E0DED8",fontWeight:400}}>{fmtDur((editRecipe.autolyseEnabled?editRecipe.steps:editRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0))} total</span></SecH>
-          <Card style={{padding:0,overflow:"hidden"}}>
+          <Card style={{padding:0,overflow:"hidden",position:"relative"}}>
+            <div ref={stepsListRef}>
             {editRecipe.steps.map((s,i)=>{
               const isBulk=s.id==="bulk",isAuto=s.id==="autolyse";
               const unit=editRecipe.stepUnit?.[s.id]||"min";
               const displayVal=unit==="hr"?+(s.durationMin/60).toFixed(2):s.durationMin;
               const disabled=isAuto&&!editRecipe.autolyseEnabled;
-              const moveStep=(from,to)=>updE(r=>{
-                const arr=[...r.steps];
-                const [moved]=arr.splice(from,1);
-                arr.splice(to,0,moved);
-                return {...r,steps:arr};
-              });
-              return <div key={s.id}
-                draggable
-                onDragStart={e=>{ e.dataTransfer.effectAllowed="move"; dragStepIdx.current=i; }}
-                onDragEnter={()=>{ if(dragStepIdx.current!==null&&dragStepIdx.current!==i){ moveStep(dragStepIdx.current,i); dragStepIdx.current=i; } }}
-                onDragOver={e=>e.preventDefault()}
-                onDragEnd={()=>{ dragStepIdx.current=null; }}
-                style={{borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",opacity:disabled?0.4:1,background:"#FFFFFF"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px"}}>
-                  {/* Reorder arrows */}
-                  <div style={{display:"flex",flexDirection:"column",gap:1,flexShrink:0}}>
-                    <button onClick={()=>i>0&&moveStep(i,i-1)}
-                      style={{background:"none",border:"none",padding:"1px 3px",cursor:i>0?"pointer":"default",color:i>0?"#ACACAC":"#E0DED8",fontSize:10,lineHeight:1}}>▲</button>
-                    <button onClick={()=>i<editRecipe.steps.length-1&&moveStep(i,i+1)}
-                      style={{background:"none",border:"none",padding:"1px 3px",cursor:i<editRecipe.steps.length-1?"pointer":"default",color:i<editRecipe.steps.length-1?"#ACACAC":"#E0DED8",fontSize:10,lineHeight:1}}>▼</button>
-                  </div>
-                  <div style={{width:10,height:10,borderRadius:"50%",background:disabled?"#E0DED8":s.color,flexShrink:0}}/>
-                  {/* Step name — always editable */}
-                  <input value={s.name} onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,name:e.target.value}:st)}))}
-                    style={{flex:1,fontSize:14,fontWeight:500,background:"transparent",border:"none",borderBottom:"1px solid #E0DED8",outline:"none",padding:"2px 0",color:"#283618",minWidth:0,fontFamily:"inherit"}}
-                    placeholder="Step name"/>
-                  {isAuto && <button onClick={()=>updE(r=>({...r,autolyseEnabled:!r.autolyseEnabled}))}
-                    style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:editRecipe.autolyseEnabled?"#283618":"#E0DED8",color:editRecipe.autolyseEnabled?"#F8F8F6":"#606c38"}}>{editRecipe.autolyseEnabled?"On":"Off"}</button>}
-                  {isBulk && <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:11,color:"#606c38",fontWeight:600}}>S&F</span>
-                    <input type="number" value={s.sfCount} min={0} max={10}
-                      onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,sfCount:parseInt(e.target.value)||0}:st)}))}
-                      style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:600,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
-                  </div>}
-                  {!disabled && (s.id==="retard" ? (
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      {unit!=="overnight" && <>
+              const isDragging = dragStep?.idx===i;
+              const isDropTarget = dragOverStep===i && dragStep?.idx!==i;
+
+              const handleLongPressStart = (e) => {
+                const touch = e.touches?.[0];
+                const clientY = touch ? touch.clientY : e.clientY;
+                const rowEl = e.currentTarget.closest('[data-step-row]');
+                const stepHeight = rowEl?.getBoundingClientRect().height || 52;
+                longPressTimer.current = setTimeout(()=>{
+                  if(navigator.vibrate) navigator.vibrate(40);
+                  setDragStep({idx:i, y:clientY, startY:clientY, stepHeight});
+                  setDragOverStep(i);
+                }, 400);
+              };
+              const handleLongPressCancel = () => {
+                clearTimeout(longPressTimer.current);
+              };
+
+              return (
+                <div key={s.id} data-step-row
+                  onMouseEnter={()=>{ if(dragStep&&dragStep.idx!==i) setDragOverStep(i); }}
+                  style={{
+                    borderBottom:i<editRecipe.steps.length-1?"0.5px solid #1E2C30":"none",
+                    opacity: isDragging ? 0.3 : disabled ? 0.4 : 1,
+                    background: isDropTarget ? "#F0F5EE" : "#FFFFFF",
+                    transition:"background 0.1s",
+                  }}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px"}}>
+                    {/* Drag handle — long press here */}
+                    <div
+                      onTouchStart={handleLongPressStart}
+                      onTouchEnd={handleLongPressCancel}
+                      onTouchMove={handleLongPressCancel}
+                      onMouseDown={handleLongPressStart}
+                      onMouseUp={handleLongPressCancel}
+                      style={{cursor:"grab",padding:"6px 4px",color:"#ACACAC",flexShrink:0,touchAction:"manipulation",userSelect:"none"}}
+                    >
+                      <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
+                        <rect y="0" width="16" height="2" rx="1"/>
+                        <rect y="5" width="16" height="2" rx="1"/>
+                        <rect y="10" width="16" height="2" rx="1"/>
+                      </svg>
+                    </div>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:disabled?"#E0DED8":s.color,flexShrink:0}}/>
+                    <input value={s.name} onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,name:e.target.value}:st)}))}
+                      style={{flex:1,fontSize:14,fontWeight:500,background:"transparent",border:"none",borderBottom:"1px solid #E0DED8",outline:"none",padding:"2px 0",color:"#283618",minWidth:0,fontFamily:"inherit"}}
+                      placeholder="Step name"/>
+                    {isAuto && <button onClick={()=>updE(r=>({...r,autolyseEnabled:!r.autolyseEnabled}))}
+                      style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:editRecipe.autolyseEnabled?"#283618":"#E0DED8",color:editRecipe.autolyseEnabled?"#F8F8F6":"#606c38"}}>{editRecipe.autolyseEnabled?"On":"Off"}</button>}
+                    {isBulk && <div style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{fontSize:11,color:"#606c38",fontWeight:600}}>S&F</span>
+                      <input type="number" value={s.sfCount} min={0} max={10}
+                        onChange={e=>updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,sfCount:parseInt(e.target.value)||0}:st)}))}
+                        style={{width:36,background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",borderRadius:0,padding:"3px 0",fontSize:13,fontWeight:600,color:s.sfCount>0?s.color:"#606c38",textAlign:"center"}}/>
+                    </div>}
+                    {!disabled && (s.id==="retard" ? (
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        {unit!=="overnight" && <>
+                          <input type="text" inputMode="decimal" value={displayVal}
+                            onFocus={e=>e.target.select()}
+                            onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
+                            onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
+                            style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
+                          <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
+                            {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
+                              style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                          </div>
+                        </>}
+                        <button onClick={()=>{
+                          const next=unit==="overnight"?"hr":"overnight";
+                          updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"?600:st.durationMin}:st)}));
+                        }} style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
+                          {unit==="overnight"?"Overnight: On":"Overnight"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
                         <input type="text" inputMode="decimal" value={displayVal}
                           onFocus={e=>e.target.select()}
                           onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
                           onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
-                          style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
+                          style={{width:48,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
                         <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                           {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
-                            style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
+                            style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#283618":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
                         </div>
-                      </>}
-                      <button onClick={()=>{
-                        const next=unit==="overnight"?"hr":"overnight";
-                        updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"?600:st.durationMin}:st)}));
-                      }} style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
-                        {unit==="overnight"?"Overnight: On":"Overnight"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <input type="text" inputMode="decimal" value={displayVal}
-                        onFocus={e=>e.target.select()}
-                        onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
-                        onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
-                        style={{width:48,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
-                      <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
-                        {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
-                          style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#283618":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
                       </div>
-                    </div>
-                  ))}
-                  {/* Delete step button */}
-                  <button onClick={()=>updE(r=>({...r,steps:r.steps.filter((_,j)=>j!==i)}))}
-                    style={{width:24,height:24,borderRadius:12,background:"transparent",border:"1px solid #E0DED8",color:"#9E3A3A",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1,cursor:"pointer"}}>
-                    −
-                  </button>
+                    ))}
+                    <button onClick={()=>updE(r=>({...r,steps:r.steps.filter((_,j)=>j!==i)}))}
+                      style={{width:24,height:24,borderRadius:12,background:"transparent",border:"1px solid #E0DED8",color:"#9E3A3A",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1,cursor:"pointer"}}>
+                      −
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {dragStep && (() => {
+              const onTouchMove = (e) => {
+                const touch = e.touches[0];
+                const listEl = stepsListRef.current;
+                if(listEl) {
+                  const rows = listEl.querySelectorAll('[data-step-row]');
+                  let found = dragStep.idx;
+                  rows.forEach((row,idx)=>{
+                    const rect=row.getBoundingClientRect();
+                    if(touch.clientY>=rect.top && touch.clientY<=rect.bottom) found=idx;
+                  });
+                  if(found!==dragOverStep) setDragOverStep(found);
+                }
+                setDragStep(d=>({...d, floatY: touch.clientY}));
+                e.preventDefault();
+              };
+              const commitDrop = () => {
+                if(dragOverStep!==null && dragOverStep!==dragStep.idx) {
+                  updE(r=>{
+                    const arr=[...r.steps];
+                    const [moved]=arr.splice(dragStep.idx,1);
+                    arr.splice(dragOverStep,0,moved);
+                    return {...r,steps:arr};
+                  });
+                }
+                setDragStep(null);
+                setDragOverStep(null);
+              };
+              return <div key="drag-overlay"
+                onTouchMove={onTouchMove}
+                onTouchEnd={commitDrop}
+                onMouseMove={e=>{
+                  const listEl = stepsListRef.current;
+                  if(!listEl) return;
+                  const rows = listEl.querySelectorAll('[data-step-row]');
+                  let found = dragStep.idx;
+                  rows.forEach((row,idx)=>{
+                    const rect=row.getBoundingClientRect();
+                    if(e.clientY>=rect.top && e.clientY<=rect.bottom) found=idx;
+                  });
+                  setDragOverStep(found);
+                  setDragStep(d=>({...d, floatY: e.clientY}));
+                }}
+                onMouseUp={commitDrop}
+                style={{position:"fixed",inset:0,zIndex:200,touchAction:"none",cursor:"grabbing"}}>
+                <div style={{
+                  position:"fixed",
+                  left:16, right:16,
+                  top: dragStep.floatY ?? dragStep.y,
+                  transform:"translateY(-50%)",
+                  background:"#283618",
+                  borderRadius:12,
+                  padding:"12px 16px",
+                  display:"flex",alignItems:"center",gap:10,
+                  boxShadow:"0 8px 32px rgba(0,0,0,0.25)",
+                  zIndex:201,
+                  pointerEvents:"none",
+                }}>
+                  <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(255,255,255,0.5)">
+                    <rect y="0" width="16" height="2" rx="1"/>
+                    <rect y="5" width="16" height="2" rx="1"/>
+                    <rect y="10" width="16" height="2" rx="1"/>
+                  </svg>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:editRecipe.steps[dragStep.idx]?.color||"#FFFFFF",flexShrink:0}}/>
+                  <span style={{fontSize:14,fontWeight:600,color:"#FFFFFF"}}>{editRecipe.steps[dragStep.idx]?.name}</span>
                 </div>
               </div>;
-            })}
+            })()}
             {/* Add step */}
             <button onClick={()=>{
               const id=uid();
@@ -1110,6 +1205,7 @@ export default function App() {
             }} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",borderTop:"0.5px solid #E0DED8",color:"#606c38",fontSize:13,fontWeight:600,textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
               <span style={{fontSize:18,lineHeight:1}}>+</span> Add Step
             </button>
+            </div>
           </Card>
 
           <SecH>Recipe Notes</SecH>
