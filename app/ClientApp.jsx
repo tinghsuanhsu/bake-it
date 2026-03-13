@@ -331,6 +331,7 @@ export default function App() {
   const [reviewPhotoHandler,setReviewPhotoHandler] = useState(null); // callback fn
   const [photoTarget,setPhotoTarget] = useState(null);
   const fileRef = useRef(null);
+  const activeBakeSaveTimer = useRef(null);
   const dragStepIdx = useRef(null);
   // All-ref drag state — no stale closure issues
   const dragRef = useRef(null); // {idx, floatY}
@@ -466,6 +467,14 @@ export default function App() {
               setSessionNotes(b.sessionNotes||'');
               setFoldNotes(b.foldNotes||{});
               setSteamDone(b.steamDone||false);
+              // Restore sfDone — was serialized as plain object of arrays, restore as Sets
+              if(b.sfDone) {
+                const restored = {};
+                Object.entries(b.sfDone).forEach(([k,v])=>{ restored[k]=new Set(Array.isArray(v)?v:[]); });
+                setSfDone(restored);
+              }
+              if(b.stepPhotos) setStepPhotos(b.stepPhotos);
+              if(b.foldPhotos) setFoldPhotos(b.foldPhotos);
               setView(VIEWS.BAKE);
               return true;
             }
@@ -507,6 +516,7 @@ export default function App() {
   // Save on every change — write to both localStorage AND a dedicated DB key via logs API
   useEffect(() => {
     if (!bakeStarted) {
+      clearTimeout(activeBakeSaveTimer.current);
       localStorage.removeItem('bakeIt_activeBake');
       // Clear DB persisted bake state
       fetch('/api/logs', {
@@ -521,17 +531,48 @@ export default function App() {
       bakeStartTime, activeStep,
       stepStartTimes, stepNotes,
       sessionNotes, foldNotes, steamDone,
+      sfDone: Object.fromEntries(Object.entries(sfDone).map(([k,v])=>[k,[...v]])),
+      stepPhotos,
+      foldPhotos,
     };
-    try { localStorage.setItem('bakeIt_activeBake', JSON.stringify(state)); } catch(e) {}
-    // Also persist to DB so it survives browser storage clears (e.g. overnight on mobile)
-    fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: JSON.stringify(state) }),
-    }).catch(()=>{});
-  }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone]);
+    const raw = JSON.stringify(state);
+    try { localStorage.setItem('bakeIt_activeBake', raw); } catch(e) {}
+    // Debounce DB write — max once every 10s to avoid hammering during a 48hr bake
+    clearTimeout(activeBakeSaveTimer.current);
+    activeBakeSaveTimer.current = setTimeout(() => {
+      fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: '__active_bake__', _activeBakeState: raw }),
+      }).catch(()=>{});
+    }, 10000);
+  }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone, sfDone, stepPhotos, foldPhotos]);
 
   useEffect(()=>{ if(!bakeStarted)return; const id=setInterval(()=>setTick(t=>t+1),1000); return()=>clearInterval(id); },[bakeStarted]);
+
+  // Force-save to DB immediately when tab/app goes to background (critical for 48hr bakes)
+  useEffect(()=>{
+    if(!bakeStarted) return;
+    const handleVisibility = () => {
+      if(document.visibilityState === 'hidden') {
+        // Flush any pending debounced save immediately
+        clearTimeout(activeBakeSaveTimer.current);
+        const state = {
+          bakeStarted: true, selectedId, bakeStartTime, activeStep,
+          stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone,
+          sfDone: Object.fromEntries(Object.entries(sfDone).map(([k,v])=>[k,[...v]])),
+          stepPhotos, foldPhotos,
+        };
+        const raw = JSON.stringify(state);
+        try { localStorage.setItem('bakeIt_activeBake', raw); } catch(e) {}
+        // Use sendBeacon for reliable background delivery
+        const blob = new Blob([JSON.stringify({ id: '__active_bake__', _activeBakeState: raw })], {type:'application/json'});
+        navigator.sendBeacon?.('/api/logs', blob);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone, sfDone, stepPhotos, foldPhotos]);
 
   // ── Request notification permission on first bake ────
   useEffect(() => {
@@ -1426,28 +1467,51 @@ export default function App() {
               if(changed) scheduleLogSave(changed);
               return next;
             });
+            // helpers for datetime-local input
+            const toDateTimeLocal = (ts) => {
+              if(!ts) return '';
+              const d = new Date(ts);
+              const pad = n => String(n).padStart(2,'0');
+              return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+            const fromDateTimeLocal = (val) => val ? new Date(val).getTime() : null;
+
             return <>
-              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+              {/* Header row: back, title, favourite */}
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
                 <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
-                <div style={{flex:1}}>
-                  <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
-                    style={{fontSize:20,fontWeight:700,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",width:"100%",padding:"2px 0",outline:"none",fontFamily:"inherit"}}/>
-                  {log.isManual ? (
-                    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
-                      <input type="date" value={new Date(log.startTime).toISOString().slice(0,10)}
-                        onChange={e=>updateLog({startTime:new Date(e.target.value).getTime()})}
-                        style={{background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#606c38",outline:"none",fontFamily:"inherit",padding:"2px 0"}}/>
-                    </div>
-                  ) : (
-                    <div style={{fontSize:13,color:"#606c38",marginTop:2}}>{new Date(log.startTime).toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long"})}{durationMin?` · ${Math.floor(durationMin/60)}h ${durationMin%60}m`:""}</div>
-                  )}
-                </div>
-                {/* Favourite star */}
+                <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
+                  style={{flex:1,fontSize:20,fontWeight:700,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",padding:"2px 0",outline:"none",fontFamily:"inherit",minWidth:0}}/>
                 <button onClick={()=>updateLog({favourite:!log.favourite})}
                   style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:log.favourite?"#E8A020":"#D0D0C8",flexShrink:0,padding:"4px"}}>
                   {log.favourite?"★":"☆"}
                 </button>
               </div>
+
+              {/* Start / End date+time — always editable */}
+              <Card style={{marginBottom:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div>
+                    <Lbl>Start</Lbl>
+                    <input type="datetime-local"
+                      value={toDateTimeLocal(log.startTime)}
+                      onChange={e=>{ const ts=fromDateTimeLocal(e.target.value); if(ts) updateLog({startTime:ts}); }}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#283618",outline:"none",fontFamily:"inherit",padding:"4px 0",boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <Lbl>End</Lbl>
+                    <input type="datetime-local"
+                      value={toDateTimeLocal(log.endTime)}
+                      onChange={e=>{ const ts=fromDateTimeLocal(e.target.value); if(ts) updateLog({endTime:ts}); }}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#283618",outline:"none",fontFamily:"inherit",padding:"4px 0",boxSizing:"border-box"}}/>
+                  </div>
+                </div>
+                {durationMin!=null && durationMin>0 && (
+                  <div style={{fontSize:12,color:"#606c38",marginTop:8,fontWeight:600}}>
+                    Duration: {Math.floor(durationMin/60)}h {durationMin%60}m
+                  </div>
+                )}
+              </Card>
 
               {log.isManual && (
                 <Card style={{marginBottom:4}}>
