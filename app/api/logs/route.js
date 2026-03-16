@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { getDb } from '../../../lib/db';
+import { validateLogPayload, errorResponse } from '../../../lib/apiValidation';
 
 // GET /api/logs — list all bake sessions, most recent first
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
     const logs = rows.map(r => ({ id: r.id, ...r.data }));
     return Response.json(logs);
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return errorResponse(err);
   }
 }
 
@@ -23,7 +24,7 @@ export async function GET() {
 export async function POST(req) {
   const sql = getDb();
   try {
-    const log = await req.json();
+    const log = validateLogPayload(await req.json());
     const { id, ...rest } = log;
     await sql`
       INSERT INTO bake_logs (id, data)
@@ -33,6 +34,6 @@ export async function POST(req) {
     `;
     return Response.json({ ok: true, id });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return errorResponse(err);
   }
 }

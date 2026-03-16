@@ -1542,25 +1542,55 @@ export default function App() {
               </Card>
               </>}
 
-              <SecH>Step Notes</SecH>
+              <SecH>Steps</SecH>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {(log.steps||[]).filter(s=>log.autolyseEnabled!==false||s.id!=="autolyse").map((s,i)=>(
-                  <Card key={s.id}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                {(log.steps||[]).filter(s=>log.autolyseEnabled!==false||s.id!=="autolyse").map((s,i)=>{
+                  const updateStepPhotos = (photos) => setSavedLogs(prev=>{
+                    const next=prev.map(l=>l.id===viewingLog?{...l,stepPhotos:{...l.stepPhotos,[i]:photos}}:l);
+                    const changed=next.find(l=>l.id===viewingLog);
+                    if(changed) scheduleLogSave(changed);
+                    return next;
+                  });
+                  const stepPhotos = log.stepPhotos?.[i]||[];
+                  return (
+                  <Card key={s.id} style={{padding:0,overflow:"hidden"}}>
+                    {/* Step header */}
+                    <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 16px",borderBottom:"0.5px solid #E0DED8"}}>
                       <div style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-                      <span style={{fontSize:14,fontWeight:600,color:"#283618"}}>{s.name}</span>
+                      <span style={{flex:1,fontSize:14,fontWeight:600,color:"#283618"}}>{s.name}</span>
+                      <span style={{fontSize:12,color:"#606c38",fontWeight:600}}>{s.durationMin>=60?`${Math.floor(s.durationMin/60)}h${s.durationMin%60?` ${s.durationMin%60}m`:""}`:s.durationMin===0?"—":`${s.durationMin}m`}</span>
                     </div>
-                    <textarea
-                      placeholder={`Notes for ${s.name}…`}
-                      value={log.stepNotes?.[i]||""}
-                      onChange={e=>updateStepNote(i,e.target.value)}
-                      rows={2}
-                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit"}}/>
-                    {log.stepPhotos?.[i]?.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                      {log.stepPhotos[i].map((ph,pi)=><img key={pi} src={ph.src} alt="" style={{height:72,width:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>)}
-                    </div>}
+                    <div style={{padding:"12px 16px"}}>
+                      {/* Note */}
+                      <textarea
+                        placeholder={`Notes for ${s.name}…`}
+                        value={log.stepNotes?.[i]||""}
+                        onChange={e=>updateStepNote(i,e.target.value)}
+                        rows={2}
+                        style={{width:"100%",background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",padding:"2px 0",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit",marginBottom:10}}/>
+                      {/* Photos */}
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                        {stepPhotos.map((ph,pi)=>(
+                          <div key={pi} style={{position:"relative"}}>
+                            <img src={ph.src||ph} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>
+                            <button
+                              onClick={()=>updateStepPhotos(stepPhotos.filter((_,x)=>x!==pi))}
+                              style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer"}}>×</button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={()=>{
+                            setReviewPhotoHandler(()=>src=>{
+                              updateStepPhotos([...stepPhotos,{src,ts:Date.now()}]);
+                            });
+                            fileRef.current?.click();
+                          }}
+                          style={{width:72,height:72,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>+</button>
+                      </div>
+                    </div>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
 
               <SecH>Session Notes</SecH>
