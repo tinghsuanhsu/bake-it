@@ -1949,7 +1949,7 @@ export default function App() {
         </div>}
 
       </div>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/>
     </div>
     </>
   );
