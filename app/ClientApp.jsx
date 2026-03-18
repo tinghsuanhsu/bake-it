@@ -51,11 +51,6 @@ const STARTER_RECIPES = [
   {...makeRecipe(),id:"starter-5",name:"Spelt & Honey",loaves:"1",loafG:"900",ddt:"24",tempUnit:"C",steps:mkStarterSteps(),ingredients:[{id:"s5-f1",type:"flour",flourId:"f2",label:"White Baker's Flour",grams:"700"},{id:"s5-f2",type:"flour",flourId:"f18",label:"Spelt Flour",grams:"300"},{id:"s5-w",type:"other",flourId:null,label:"Water",grams:"720"},{id:"s5-s",type:"other",flourId:null,label:"Salt",grams:"18"},{id:"s5-l",type:"other",flourId:null,label:"Levain",grams:"180"},{id:"s5-h",type:"other",flourId:null,label:"Honey",grams:"20"}],notes:"30% spelt gives a slightly sweet, nutty loaf with a soft crumb. Spelt ferments fast — watch your dough carefully in warm weather."},
 ];
 
-    fetch('/api/db-init')
-      .then(() => Promise.all([
-        fetch('/api/recipes').then(r => r.json()),
-        fetch('/api/logs').then(r => r.json()),
-];
 
 // Steps to prepend if missing from DB-stored starter recipes (migration)
 const LEGACY_PREPEND_STEPS = [
