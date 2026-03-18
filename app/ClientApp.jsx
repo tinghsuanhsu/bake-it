@@ -956,7 +956,514 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
             </button>
             </div>
           </Card>
-          {stepDrag.ghostEl}() : <>
+          {stepDrag.ghostEl}
+        </div>}
+
+        {/* ══════════════════════════════
+            BAKE
+        ══════════════════════════════ */}
+        {view===VIEWS.BAKE && <div className="su">
+          {!bakeStarted||!bakeRecipe ? (
+            <div style={{textAlign:"center",paddingTop:60}}>
+              <div style={{fontSize:22,fontWeight:700,marginBottom:8}}>No active bake</div>
+              <p style={{color:"#606c38",fontSize:15,marginBottom:28,lineHeight:1.5}}>Choose a recipe and tap Bake to start.</p>
+              {recipes.length>0 && <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4,textAlign:"left"}}>Quick Start</div>
+                {recipes.map(r=><button key={r.id} onClick={()=>startBake(r)}
+                  style={{padding:"14px 18px",borderRadius:14,background:"#FFFFFF",border:"1px solid #E0DED8",color:"#283618",fontSize:15,fontWeight:600,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
+                  {r.name}<span style={{color:"#5C5C5C",fontSize:13,fontWeight:600}}>Bake →</span>
+                </button>)}
+              </div>}
+            </div>
+          ) : <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+              <div>
+                <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.03em"}}>{bakeRecipe.name}</div>
+                {(()=>{
+                const totalStepMin=(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
+                const estFinish=bakeStartTime?new Date(bakeStartTime+totalStepMin*60000):null;
+                const estNow=new Date();
+                const isTomorrow=estFinish&&(estFinish.getDate()!==estNow.getDate()||estFinish.getMonth()!==estNow.getMonth());
+                const estStr=estFinish?(isTomorrow?"tomorrow ":"")+estFinish.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):null;
+                return <div style={{fontSize:13,color:"#606c38",marginTop:3}}>
+                  Started {timeStr(bakeStartTime)} · {bakeRecipe.loaves} × {bakeRecipe.loafG}g · DDT {bakeRecipe.ddt}°{bakeRecipe.tempUnit||"C"}
+                  {estStr&&<span> · Est. finish <strong style={{color:"#283618"}}>{estStr}</strong></span>}
+                </div>;
+              })()}
+                <button onClick={finishBake} style={{marginTop:10,padding:"7px 14px",borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:12,fontWeight:600}}>Finish & Save →</button>
+              </div>
+              {activeStep!=null&&activeStep<bakeRecipe.steps.length&&
+                <div style={{background:bakeRecipe.steps[activeStep].color+"22",color:bakeRecipe.steps[activeStep].color,borderRadius:20,padding:"6px 13px",fontSize:13,fontWeight:600}}>
+                  {activeStep+1}/{bakeRecipe.autolyseEnabled?bakeRecipe.steps.length:bakeRecipe.steps.filter(s=>s.id!=="autolyse").length}
+                </div>}
+            </div>
+
+            {activeStep!=null&&activeStep<bakeRecipe.steps.length&&(()=>{
+              const s=bakeRecipe.steps[activeStep],sfNext=nextSfIn(activeStep);
+              return <Card style={{padding:24}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/><div style={{fontSize:11,fontWeight:700,color:"#283618",textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.name}</div></div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#606c38"}}>{fmtDur(s.durationMin)}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:24,marginBottom:22}}>
+                  <Ring progress={prog(activeStep)} color={s.color}>
+                    <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.04em",lineHeight:1,color:"#283618"}}>{fmtTime(remaining(activeStep))}</div>
+                    <div style={{fontSize:10,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginTop:2}}>left</div>
+                  </Ring>
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:16}}>
+                    <Stat label="Elapsed" value={fmtTime(elapsed(activeStep))}/>
+                    {s.sfCount>0&&sfNext!=null&&<Stat label="Next S&F" value={fmtTime(sfNext)} highlight={sfNext<60}/>}
+                    <Stat label="Done" value={`${Math.round(prog(activeStep)*100)}%`} color={s.color}/>
+                  </div>
+                </div>
+                <div style={{height:4,background:"#283618",borderRadius:4,marginBottom:20,overflow:"hidden"}}>
+                  <div style={{height:"100%",background:s.color,borderRadius:4,width:`${prog(activeStep)*100}%`,transition:"width 1s linear"}}/>
+                </div>
+                {s.id==="bulk"&&<div style={{marginBottom:18}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <Lbl style={{marginBottom:0}}>Stretch &amp; Folds</Lbl>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {s.sfCount>0&&<button onClick={()=>{
+                        const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
+                        upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.max(0,st.sfCount-1)}:st)}));
+                      }} style={{width:28,height:28,borderRadius:8,background:"#EFEFED",color:"#606c38",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>}
+                      <span style={{fontSize:13,fontWeight:600,color:"#606c38",minWidth:16,textAlign:"center"}}>{s.sfCount}</span>
+                      <button onClick={()=>{
+                        const bulkIdx=bakeRecipe.steps.findIndex(st=>st.id==="bulk");
+                        upd(selectedId, r=>({...r,steps:r.steps.map((st,j)=>j===bulkIdx?{...st,sfCount:Math.min(20,st.sfCount+1)}:st)}));
+                      }} style={{width:28,height:28,borderRadius:8,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {Array.from({length:s.sfCount},(_,fi)=>fi+1).map(n=>{
+                      const done=sfDone[activeStep]?.has(n);
+                      const isExpanded=expandedFold===n;
+                      const note=foldNotes[n]||"";
+                      const photo=foldPhotos[n];
+                      return <div key={n} style={{borderRadius:12,border:`1px solid ${done?"#283618":"#E0DED8"}`,overflow:"hidden",background:done?"#283618":"#FAFAFA"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}
+                          onClick={()=>setExpandedFold(isExpanded?null:n)}>
+                          <button onClick={e=>{e.stopPropagation();toggleSF(activeStep,n);}}
+                            style={{width:36,height:36,borderRadius:10,background:done?"#FFFFFF22":"#EFEFED",color:done?"#FFFFFF":"#606c38",fontSize:13,fontWeight:700,flexShrink:0,border:done?`2px solid ${s.color}`:"2px solid transparent"}}>
+                            {done?"✓":n}
+                          </button>
+                          <span style={{flex:1,fontSize:14,fontWeight:600,color:done?"#FFFFFF":"#283618"}}>Fold {n}</span>
+                          {note&&<span style={{fontSize:11,color:done?"rgba(255,255,255,0.5)":"#606c38",fontWeight:600}}>note</span>}
+                          {photo&&<span style={{fontSize:11,color:done?"rgba(255,255,255,0.5)":"#606c38",fontWeight:600}}>photo</span>}
+                          <span style={{fontSize:11,color:done?"rgba(255,255,255,0.4)":"#6E6E6E"}}>{isExpanded?"▲":"▼"}</span>
+                        </div>
+                        {isExpanded&&<div style={{padding:"0 12px 12px",borderTop:`1px solid ${done?"rgba(255,255,255,0.1)":"#E0DED8"}`,background:done?"rgba(255,255,255,0.06)":"#F8F8F6"}}>
+                          <textarea placeholder={`Notes for fold ${n}…`} value={note}
+                            onChange={e=>setFoldNotes(p=>({...p,[n]:e.target.value}))} rows={2}
+                            style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"8px 2px",fontSize:13,color:done?"#FFFFFF":"#283618",resize:"vertical",lineHeight:1.6,outline:"none",fontFamily:"inherit",marginTop:10,marginBottom:10}}/>
+                          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                            {photo&&<div style={{position:"relative"}}>
+                              <img src={photo} alt="" style={{width:56,height:56,objectFit:"cover",borderRadius:10,border:"1px solid #E0DED8"}}/>
+                              <button onClick={()=>setFoldPhotos(p=>{const n2={...p};delete n2[n];return n2;})}
+                                style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                            </div>}
+                            {!photo&&<button onClick={()=>{setFoldPhotoTarget(n);fileRef.current?.click();}}
+                              style={{width:56,height:56,borderRadius:10,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>}
+                          </div>
+                        </div>}
+                      </div>;
+                    })}
+                  </div>
+                </div>}
+                {s.id==="bake"&&<div style={{marginBottom:18}}>
+                  <Lbl>Oven Steps</Lbl>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {[
+                      {key:"steam_in",  label:"Add steam",    desc:"Place tray of boiling water or lids on"},
+                      {key:"steam_out", label:"Remove steam", desc:"Remove steam source, vent oven"},
+                    ].map(sub=>{
+                      const done=steamDone[sub.key];
+                      return <div key={sub.key} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderRadius:12,background:done?"#283618":"#F2F2F0",border:`1px solid ${done?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
+                        <button onClick={()=>setSteamDone(p=>({...p,[sub.key]:!p[sub.key]}))}
+                          style={{width:32,height:32,borderRadius:9,background:done?"#FFFFFF22":"#FFFFFF",border:done?"2px solid rgba(255,255,255,0.3)":"2px solid #E0DED8",color:done?"#FFFFFF":"#606c38",fontSize:14,fontWeight:700,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {done?"✓":""}
+                        </button>
+                        <div>
+                          <div style={{fontSize:14,fontWeight:600,color:done?"#FFFFFF":"#283618"}}>{sub.label}</div>
+                          <div style={{fontSize:11,color:done?"rgba(255,255,255,0.6)":"#6E6E6E",marginTop:1}}>{sub.desc}</div>
+                        </div>
+                      </div>;
+                    })}
+                  </div>
+                </div>}
+                <textarea placeholder={`Notes for ${s.name}…`} value={stepNotes[activeStep]||""} onChange={e=>setStepNotes(p=>({...p,[activeStep]:e.target.value}))} rows={2}
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",borderRadius:0,padding:"6px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,marginBottom:14,outline:"none",fontFamily:"inherit"}}/>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:20}}>
+                  {(stepPhotos[activeStep]||[]).map((ph,pi)=><div key={pi} style={{position:"relative"}}>
+                    <img src={ph.src} alt="" style={{width:64,height:64,objectFit:"cover",borderRadius:14,border:"1px solid #E0DED8"}}/>
+                    <button onClick={()=>setStepPhotos(p=>({...p,[activeStep]:p[activeStep].filter((_,i)=>i!==pi)}))}
+                      style={{position:"absolute",top:-7,right:-7,width:22,height:22,borderRadius:"50%",background:"#9E3A3A",color:"#F8F8F6",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                  </div>)}
+                  <button onClick={()=>{setPhotoTarget(activeStep);fileRef.current?.click();}}
+                    style={{width:64,height:64,borderRadius:14,border:"2px dashed #E0DED8",background:"transparent",color:"#E0DED8",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                </div>
+
+                <button onClick={()=>completeStep(activeStep)}
+                  style={{width:"100%",padding:"16px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:700,letterSpacing:"-0.01em"}}>
+                  Complete → {activeStep+1<bakeRecipe.steps.length?bakeRecipe.steps[activeStep+1].name:"Finish"}
+                </button>
+              </Card>;
+            })()}
+
+            {activeStep===null&&<Card><div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{width:56,height:56,borderRadius:18,background:"#283618",margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <span style={{fontSize:24,fontWeight:700,color:"#5C5C5C"}}>✓</span>
+              </div>
+              <div style={{fontSize:22,fontWeight:700,marginBottom:6}}>Bake complete!</div>
+              <p style={{color:"#606c38",fontSize:14}}>Check your log for the session summary.</p>
+            </div></Card>}
+
+            <SecH>Timeline — tap to edit notes</SecH>
+            <Card style={{padding:0,overflow:"hidden"}}>
+              {(bakeRecipe.autolyseEnabled?bakeRecipe.steps:bakeRecipe.steps.filter(s=>s.id!=="autolyse")).map((s,i)=>{
+                const isPast=activeStep!=null&&i<activeStep,isCurr=i===activeStep,isFuture=activeStep!=null&&i>activeStep;
+                const canEdit=isPast||isCurr,isOpen=editingStep===i;
+                return <div key={s.id} style={{borderBottom:i<bakeRecipe.steps.length-1?"0.5px solid #1E2C30":"none"}}>
+                  <div onClick={()=>canEdit&&setEditingStep(isOpen?null:i)}
+                    style={{display:"flex",alignItems:"center",gap:12,padding:"13px 18px",opacity:isFuture?0.35:1,cursor:canEdit?"pointer":"default",userSelect:"none"}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:isPast?"#5C5C5C":isCurr?s.color:"#E0DED8",flexShrink:0,transition:"background 0.4s"}}/>
+                    <span style={{flex:1,fontSize:15,fontWeight:isCurr?700:400}}>{s.name}</span>
+                    {stepNotes[i]&&<span style={{fontSize:11,color:"#606c38",fontWeight:600}}>note</span>}
+                    {(stepPhotos[i]?.length||0)>0&&<span style={{fontSize:11,color:"#606c38",fontWeight:600}}>{stepPhotos[i].length} photo{stepPhotos[i].length>1?"s":""}</span>}
+                    {isPast&&!isOpen&&<span style={{color:"#5C5C5C",fontSize:11,fontWeight:600}}>done</span>}
+                    {isCurr&&<span className="pulse" style={{fontSize:11,fontWeight:700,color:"#283618",background:s.color+"33",borderRadius:6,padding:"2px 7px"}}>ACTIVE</span>}
+                    <span style={{fontSize:13,color:"#606c38"}}>{fmtDur(s.durationMin)}</span>
+                    {s.sfCount>0&&<span style={{fontSize:11,fontWeight:600,color:s.color,background:s.color+"20",borderRadius:7,padding:"2px 7px"}}>×{s.sfCount}</span>}
+                    {canEdit&&<span style={{fontSize:11,color:"#E0DED8",flexShrink:0}}>{isOpen?"▲":"▼"}</span>}
+                  </div>
+                  {isOpen&&<div style={{padding:"0 18px 18px",background:"#E0DED8",borderTop:"0.5px solid #E0DED8"}}>
+                    <Lbl style={{marginTop:14}}>Notes</Lbl>
+                    <textarea placeholder={`Notes for ${s.name}…`} value={stepNotes[i]||""} onChange={e=>setStepNotes(p=>({...p,[i]:e.target.value}))} rows={3}
+                      style={{width:"100%",background:"#FFFFFF",border:`1.5px solid ${s.color}`,borderRadius:12,padding:"11px 14px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,marginBottom:14,outline:"none"}}/>
+                    <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                      {(stepPhotos[i]||[]).map((ph,pi)=><div key={pi} style={{position:"relative"}}>
+                        <img src={ph.src} alt="" style={{width:60,height:60,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>
+                        <button onClick={()=>setStepPhotos(p=>({...p,[i]:p[i].filter((_,x)=>x!==pi)}))}
+                          style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:"#9E3A3A",color:"#F8F8F6",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>)}
+                      <button onClick={()=>{setPhotoTarget(i);fileRef.current?.click();}}
+                        style={{width:60,height:60,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#E0DED8",fontSize:24,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    </div>
+                    <button onClick={()=>setEditingStep(null)} style={{marginTop:14,padding:"9px 20px",borderRadius:10,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>Done</button>
+                  </div>}
+                </div>;
+              })}
+            </Card>
+          </>}
+        </div>}
+
+        {/* ══════════════════════════════
+            LOG
+        ══════════════════════════════ */}
+        {view===VIEWS.LOG && <div className="su">
+
+          {viewingLog ? (()=>{
+            const log = savedLogs.find(l=>l.id===viewingLog);
+            if(!log) return null;
+            const durationMin = log.endTime&&log.startTime ? Math.round((log.endTime-log.startTime)/60000) : null;
+            const updateLog = patch => setSavedLogs(prev=>{
+              const next=prev.map(l=>l.id===viewingLog?{...l,...patch}:l);
+              const changed=next.find(l=>l.id===viewingLog);
+              if(changed) scheduleLogSave(changed);
+              return next;
+            });
+            const updateStepNote = (i,val) => setSavedLogs(prev=>{
+              const next=prev.map(l=>l.id===viewingLog?{...l,stepNotes:{...l.stepNotes,[i]:val}}:l);
+              const changed=next.find(l=>l.id===viewingLog);
+              if(changed) scheduleLogSave(changed);
+              return next;
+            });
+            const toDateTimeLocal = (ts) => {
+              if(!ts) return '';
+              const d = new Date(ts);
+              const pad = n => String(n).padStart(2,'0');
+              return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+            const fromDateTimeLocal = (val) => val ? new Date(val).getTime() : null;
+            return <>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+                <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
+                <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
+                  style={{flex:1,fontSize:20,fontWeight:700,letterSpacing:"-0.02em",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",color:"#283618",padding:"2px 0",outline:"none",fontFamily:"inherit",minWidth:0}}/>
+                <button onClick={()=>updateLog({favourite:!log.favourite})}
+                  style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:log.favourite?"#E8A020":"#D0D0C8",flexShrink:0,padding:"4px"}}>
+                  {log.favourite?"★":"☆"}
+                </button>
+              </div>
+              <Card style={{marginBottom:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <div><Lbl>Start</Lbl>
+                    <input type="datetime-local" value={toDateTimeLocal(log.startTime)}
+                      onChange={e=>{ const ts=fromDateTimeLocal(e.target.value); if(ts) updateLog({startTime:ts}); }}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#283618",outline:"none",fontFamily:"inherit",padding:"4px 0",boxSizing:"border-box"}}/>
+                  </div>
+                  <div><Lbl>End</Lbl>
+                    <input type="datetime-local" value={toDateTimeLocal(log.endTime)}
+                      onChange={e=>{ const ts=fromDateTimeLocal(e.target.value); if(ts) updateLog({endTime:ts}); }}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",fontSize:13,color:"#283618",outline:"none",fontFamily:"inherit",padding:"4px 0",boxSizing:"border-box"}}/>
+                  </div>
+                </div>
+                {durationMin!=null && durationMin>0 && (
+                  <div style={{fontSize:12,color:"#606c38",marginTop:8,fontWeight:600}}>
+                    Duration: {Math.floor(durationMin/60)}h {durationMin%60}m
+                  </div>
+                )}
+              </Card>
+              {log.isManual && (
+                <Card style={{marginBottom:4}}>
+                  <Lbl>Link to recipe (optional)</Lbl>
+                  <select value={log.recipeId||""} onChange={e=>{
+                    const r=recipes.find(x=>x.id===e.target.value);
+                    updateLog({recipeId:e.target.value,recipeName:r?r.name:log.recipeName,ingredients:r?r.ingredients:[],steps:r?r.steps:log.steps,autolyseEnabled:r?r.autolyseEnabled:true});
+                  }} style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"6px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",marginTop:4}}>
+                    <option value="">— none —</option>
+                    {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </Card>
+              )}
+                </div>
+                {durationMin!=null && durationMin>0 && (
+                  <div style={{fontSize:12,color:"#606c38",marginTop:8,fontWeight:600}}>
+                    Duration: {Math.floor(durationMin/60)}h {durationMin%60}m
+                  </div>
+                )}
+              </Card>
+
+              {log.isManual && (
+                <Card style={{marginBottom:4}}>
+                  <Lbl>Link to recipe (optional)</Lbl>
+                  <select value={log.recipeId||""} onChange={e=>{
+                    const r=recipes.find(x=>x.id===e.target.value);
+                    updateLog({recipeId:e.target.value,recipeName:r?r.name:log.recipeName,ingredients:r?r.ingredients:[],steps:r?r.steps:log.steps,autolyseEnabled:r?r.autolyseEnabled:true});
+                  }} style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"6px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",marginTop:4}}>
+                    <option value="">— none —</option>
+                    {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </Card>
+              )}
+              {(log.ingredients||[]).filter(i=>parseFloat(i.grams)).length>0&&<>
+              <SecH>Ingredients</SecH>
+              <Card>
+                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                  {(log.ingredients||[]).filter(i=>parseFloat(i.grams)).map(i=>{
+                    const fl=i.flourId?FLOUR_DB.find(f=>f.id===i.flourId):null;
+                    const flourG=(log.ingredients||[]).filter(x=>x.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
+                    return <div key={i.id}>
+                      <Lbl>{fl?fl.name:i.label}</Lbl>
+                      <div style={{fontSize:18,fontWeight:700}}>{i.grams}g</div>
+                      {i.type!=="flour"&&flourG>0&&<div style={{fontSize:12,fontWeight:600,color:"#5C5C5C"}}>{bkPct(parseFloat(i.grams),flourG)}%</div>}
+                    </div>;
+                  })}
+                </div>
+              </Card>
+              </>}
+
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"20px 0 8px",paddingLeft:4}}>
+                <div style={{fontSize:13,fontWeight:600,color:"#606c38"}}>Steps</div>
+                <button onClick={()=>{
+                  const newStep={id:uid(),name:"New Step",durationMin:30,sfCount:0,color:STEP_COLORS[(log.steps||[]).length%STEP_COLORS.length],custom:true};
+                  updateLog({steps:[...(log.steps||[]),newStep]});
+                }} style={{fontSize:12,fontWeight:600,color:"#606c38",background:"none",border:"1px solid #E0DED8",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>+ Add step</button>
+              </div>
+              <div ref={logStepsListRef} style={{display:"flex",flexDirection:"column",gap:8}}>
+                {(log.steps||[]).map((s,i)=>{
+                  const updateStepPhotos = (photos) => setSavedLogs(prev=>{
+                    const next=prev.map(l=>l.id===viewingLog?{...l,stepPhotos:{...l.stepPhotos,[i]:photos}}:l);
+                    const changed=next.find(l=>l.id===viewingLog);
+                    if(changed) scheduleLogSave(changed);
+                    return next;
+                  });
+                  const stepPhotos = log.stepPhotos?.[i]||[];
+                  const isLogDragging  = logDragStep?.idx===i;
+                  const isLogDropTarget = logDragOverStep===i && logDragStep?.idx!==i;
+                  return (
+                  <div key={s.id||i} data-log-step-row style={{opacity:isLogDragging?0.25:1,transition:"opacity 0.15s"}}>
+                  <Card style={{padding:0,overflow:"hidden",border:isLogDropTarget?"2px solid #606c38":"1px solid #E0DED8",transition:"border 0.1s"}}>
+                    {/* Step header — editable name, duration, drag handle, delete */}
+                    <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderBottom:"0.5px solid #E0DED8"}}>
+                      {/* Drag handle */}
+                      <div style={{cursor:"grab",padding:"4px 4px 4px 0",color:"#BBBBAA",flexShrink:0,touchAction:"none",userSelect:"none"}}
+                        onTouchStart={e=>{
+                          const t=e.touches[0];
+                          logStepDragRef.current={pending:true,idx:i,startY:t.clientY,floatY:t.clientY,name:s.name,color:s.color||"#606c38"};
+                          logStepLongPressTimer.current=setTimeout(()=>{
+                            if(!logStepDragRef.current?.pending) return;
+                            logStepDragRef.current.pending=false;
+                            logStepDragRef.current.active=true;
+                            logStepDragOverRef.current=i;
+                            if(navigator.vibrate) navigator.vibrate(30);
+                            setLogDragStep({idx:i,floatY:logStepDragRef.current.floatY,name:s.name,color:s.color||"#606c38"});
+                            setLogDragOverStep(i);
+                          },350);
+                        }}
+                        onTouchMove={e=>{
+                          if(!logStepDragRef.current) return;
+                          const t=e.touches[0];
+                          if(logStepDragRef.current.pending && Math.abs(t.clientY-logStepDragRef.current.startY)>6){
+                            clearTimeout(logStepLongPressTimer.current);
+                            logStepDragRef.current=null; return;
+                          }
+                          if(!logStepDragRef.current.active) return;
+                          e.preventDefault(); e.stopPropagation();
+                          logStepDragRef.current.floatY=t.clientY;
+                          const rows=logStepsListRef.current?.querySelectorAll("[data-log-step-row]");
+                          if(rows) rows.forEach((row,idx)=>{ const r=row.getBoundingClientRect(); if(t.clientY>=r.top&&t.clientY<=r.bottom){ logStepDragOverRef.current=idx; setLogDragOverStep(idx); } });
+                          const ghost=document.getElementById("log-step-drag-ghost");
+                          if(ghost) ghost.style.top=t.clientY+"px";
+                        }}
+                        onTouchEnd={()=>{
+                          clearTimeout(logStepLongPressTimer.current);
+                          if(!logStepDragRef.current?.active){logStepDragRef.current=null;return;}
+                          const from=logStepDragRef.current.idx;
+                          const to=logStepDragOverRef.current??from;
+                          logStepDragRef.current=null; logStepDragOverRef.current=null;
+                          setLogDragStep(null); setLogDragOverStep(null);
+                          if(to!==from){
+                            const steps=[...(log.steps||[])];
+                            const [moved]=steps.splice(from,1);
+                            steps.splice(to,0,moved);
+                            // also remap stepNotes and stepPhotos
+                            const oldNotes={...(log.stepNotes||{})};
+                            const oldPhotos={...(log.stepPhotos||{})};
+                            const newNotes={}, newPhotos={};
+                            steps.forEach((_,ni)=>{
+                              const origIdx=ni<to&&ni>=from?ni+1:ni>to&&ni<=from?ni-1:ni===to?from:ni;
+                              if(oldNotes[origIdx]!==undefined) newNotes[ni]=oldNotes[origIdx];
+                              if(oldPhotos[origIdx]!==undefined) newPhotos[ni]=oldPhotos[origIdx];
+                            });
+                            updateLog({steps,stepNotes:newNotes,stepPhotos:newPhotos});
+                          }
+                        }}
+                        onTouchCancel={()=>{clearTimeout(logStepLongPressTimer.current);logStepDragRef.current=null;logStepDragOverRef.current=null;setLogDragStep(null);setLogDragOverStep(null);}}
+                      >
+                        <svg width="14" height="10" viewBox="0 0 14 10" fill="currentColor"><rect y="0" width="14" height="2" rx="1"/><rect y="4" width="14" height="2" rx="1"/><rect y="8" width="14" height="2" rx="1"/></svg>
+                      </div>
+                      <div style={{width:9,height:9,borderRadius:"50%",background:s.color||"#606c38",flexShrink:0}}/>
+                      {/* Editable name */}
+                      <input value={s.name||""} onChange={e=>{
+                        const steps=(log.steps||[]).map((st,j)=>j===i?{...st,name:e.target.value}:st);
+                        updateLog({steps});
+                      }} style={{flex:1,fontSize:14,fontWeight:600,background:"transparent",border:"none",borderBottom:"1px solid #E0DED8",outline:"none",padding:"2px 0",color:"#283618",fontFamily:"inherit",minWidth:0}}/>
+                      {/* Duration input */}
+                      <input type="text" inputMode="numeric" value={s.durationMin||""} onChange={e=>{
+                        const v=parseInt(e.target.value)||0;
+                        const steps=(log.steps||[]).map((st,j)=>j===i?{...st,durationMin:v}:st);
+                        updateLog({steps});
+                      }} style={{width:42,fontSize:12,fontWeight:600,background:"#F8F8F6",border:"1px solid #E0DED8",borderRadius:6,padding:"3px 4px",textAlign:"center",color:"#283618",outline:"none"}}/>
+                      <span style={{fontSize:11,color:"#9E9E90",flexShrink:0}}>min</span>
+                      {/* Delete */}
+                      <button onClick={()=>{
+                        const steps=(log.steps||[]).filter((_,j)=>j!==i);
+                        updateLog({steps});
+                      }} style={{width:22,height:22,borderRadius:11,background:"transparent",border:"1px solid #E0DED8",color:"#9E3A3A",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>−</button>
+                    </div>
+                    <div style={{padding:"12px 16px"}}>
+                      <textarea placeholder={`Notes for ${s.name}…`} value={log.stepNotes?.[i]||""}
+                        onChange={e=>updateStepNote(i,e.target.value)} rows={2}
+                        style={{width:"100%",background:"transparent",border:"none",borderBottom:"1.5px solid #E0DED8",padding:"2px 0",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit",marginBottom:10}}/>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                        {stepPhotos.map((ph,pi)=>(
+                          <div key={pi} style={{position:"relative"}}>
+                            <img src={ph.src||ph} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>
+                            <button onClick={()=>updateStepPhotos(stepPhotos.filter((_,x)=>x!==pi))}
+                              style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer"}}>×</button>
+                          </div>
+                        ))}
+                        <button onClick={()=>{
+                          setReviewPhotoHandler(()=>src=>updateStepPhotos([...stepPhotos,{src,ts:Date.now()}]));
+                          fileRef.current?.click();
+                        }} style={{width:72,height:72,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>+</button>
+                      </div>
+                    </div>
+                  </Card>
+                  </div>
+                  );
+                })}
+              </div>
+              {logDragStep && (
+                <div id="log-step-drag-ghost" style={{
+                  position:"fixed",left:16,right:16,top:logDragStep.floatY,
+                  transform:"translateY(-50%)",background:"#283618",borderRadius:12,
+                  padding:"12px 16px",display:"flex",alignItems:"center",gap:10,
+                  boxShadow:"0 8px 32px rgba(0,0,0,0.3)",zIndex:9999,pointerEvents:"none",
+                }}>
+                  <svg width="14" height="10" viewBox="0 0 14 10" fill="rgba(255,255,255,0.4)"><rect y="0" width="14" height="2" rx="1"/><rect y="4" width="14" height="2" rx="1"/><rect y="8" width="14" height="2" rx="1"/></svg>
+                  <div style={{width:9,height:9,borderRadius:"50%",background:logDragStep.color,flexShrink:0}}/>
+                  <span style={{fontSize:14,fontWeight:600,color:"#FFFFFF"}}>{logDragStep.name}</span>
+                </div>
+              )}
+
+              <SecH>Session Notes</SecH>
+              <Card>
+                <textarea
+                  placeholder="Crumb, environment, what to tweak…"
+                  value={log.sessionNotes||""}
+                  onChange={e=>updateLog({sessionNotes:e.target.value})}
+                  rows={5}
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:15,color:"#283618",resize:"vertical",lineHeight:1.7,outline:"none",fontFamily:"inherit"}}/>
+              </Card>
+
+
+              <SecH>Bake Review</SecH>
+              <Card>
+                {[
+                  {key:"crumb",    label:"Crumb",       placeholder:"Open, even, dense, gummy…"},
+                  {key:"crust",    label:"Crust",        placeholder:"Thick, thin, crackly, soft…"},
+                  {key:"colour",   label:"Colour",       placeholder:"Golden, pale, deep brown…"},
+                  {key:"ear",      label:"Ear & Bloom",  placeholder:"Good spring, minimal bloom…"},
+                  {key:"flavour",  label:"Flavour",      placeholder:"Sour, mild, nutty, complex…"},
+                  {key:"texture",  label:"Texture",      placeholder:"Chewy, soft, moist, dry…"},
+                  {key:"overall",  label:"Overall",      placeholder:"What worked, what to change…"},
+                ].map(({key,label,placeholder})=>(
+                  <div key={key} style={{marginBottom:14}}>
+                    <Lbl>{label}</Lbl>
+                    <textarea placeholder={placeholder} rows={1}
+                      value={log.review?.[key]||""}
+                      onChange={e=>updateLog({review:{...(log.review||{}),[key]:e.target.value}})}
+                      style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"4px 2px",fontSize:14,color:"#283618",resize:"vertical",lineHeight:1.65,outline:"none",fontFamily:"inherit"}}/>
+                  </div>
+                ))}
+                {/* Photos */}
+                <div style={{marginBottom:14}}>
+                  <Lbl>Photos</Lbl>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+                    {(log.review?.photos||[]).map((src,pi)=>(
+                      <div key={pi} style={{position:"relative"}}>
+                        <img src={src} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:12,border:"1px solid #E0DED8"}}/>
+                        <button onClick={()=>updateLog({review:{...(log.review||{}),photos:(log.review?.photos||[]).filter((_,i)=>i!==pi)}})}
+                          style={{position:"absolute",top:-7,right:-7,width:20,height:20,borderRadius:"50%",background:"#9E3A3A",color:"#FFF",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                      </div>
+                    ))}
+                    <button onClick={()=>{
+                      setReviewPhotoHandler(()=>src=>updateLog({review:{...(log.review||{}),photos:[...(log.review?.photos||[]),src]}}));
+                      fileRef.current?.click();
+                    }} style={{width:72,height:72,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                  </div>
+                </div>
+                {/* Rating */}
+                <div style={{marginTop:4}}>
+                  <Lbl>Rating</Lbl>
+                  <div style={{display:"flex",gap:8,marginTop:6}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>updateLog({review:{...(log.review||{}),rating:n}})}
+                        style={{width:40,height:40,borderRadius:10,background:(log.review?.rating||0)>=n?"#283618":"#EFEFED",color:(log.review?.rating||0)>=n?"#FFFFFF":"#6E6E6E",fontSize:14,fontWeight:700,border:"none"}}>
+                        {n}
+                      </button>
+                    ))}
+                    {log.review?.rating&&<span style={{fontSize:13,color:"#606c38",alignSelf:"center",marginLeft:4}}>{["","Poor","Fair","Good","Great","Perfect!"][log.review.rating]}</span>}
+                  </div>
+                </div>
+              </Card>
+
+              <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
+                style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
+            </>;
+          })() : <>
 
           {/* Stats row */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:24}}>
