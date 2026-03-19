@@ -267,21 +267,33 @@ export default function App() {
   }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, // eslint-disable-line
       stepNotes, sessionNotes, foldNotes, steamDone, sfDone, stepPhotos, foldPhotos]);
 
-  // ── Flush to DB when app goes to background (reliable for 48hr bakes) ────────
+  // ── Flush to DB when app goes to background or is closed ────────────────────
+  // Uses three events to cover all browsers and iOS PWA:
+  //   visibilitychange — tab switch / PWA background
+  //   pagehide         — iOS Safari PWA swipe-away / home button
+  //   beforeunload     — desktop browser close / reload
   useEffect(() => {
     if (!bakeStarted) return;
-    const onHide = () => {
-      if (document.visibilityState !== 'hidden') return;
-      const state = {
-        bakeStarted: true, selectedId, bakeStartTime, activeStep,
-        stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone,
-        sfDone: Object.fromEntries(Object.entries(sfDone).map(([k, v]) => [k, [...v]])),
-        stepPhotos, foldPhotos,
-      };
-      flushActiveBake(state);
+    const getState = () => ({
+      bakeStarted: true, selectedId, bakeStartTime, activeStep,
+      stepStartTimes, stepNotes, sessionNotes, foldNotes, steamDone,
+      sfDone: Object.fromEntries(Object.entries(sfDone).map(([k, v]) => [k, [...v]])),
+      stepPhotos, foldPhotos,
+    });
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushActiveBake(getState());
     };
-    document.addEventListener('visibilitychange', onHide);
-    return () => document.removeEventListener('visibilitychange', onHide);
+    const onPageHide   = () => flushActiveBake(getState());
+    const onBeforeUnload = () => flushActiveBake(getState());
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide',     onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide',     onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
   }, [bakeStarted, selectedId, bakeStartTime, activeStep, stepStartTimes, // eslint-disable-line
       stepNotes, sessionNotes, foldNotes, steamDone, sfDone, stepPhotos, foldPhotos]);
 
@@ -1222,26 +1234,6 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
                   </div>
                 )}
               </Card>
-              {log.isManual && (
-                <Card style={{marginBottom:4}}>
-                  <Lbl>Link to recipe (optional)</Lbl>
-                  <select value={log.recipeId||""} onChange={e=>{
-                    const r=recipes.find(x=>x.id===e.target.value);
-                    updateLog({recipeId:e.target.value,recipeName:r?r.name:log.recipeName,ingredients:r?r.ingredients:[],steps:r?r.steps:log.steps,autolyseEnabled:r?r.autolyseEnabled:true});
-                  }} style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"6px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit",marginTop:4}}>
-                    <option value="">— none —</option>
-                    {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                </Card>
-              )}
-                </div>
-                {durationMin!=null && durationMin>0 && (
-                  <div style={{fontSize:12,color:"#606c38",marginTop:8,fontWeight:600}}>
-                    Duration: {Math.floor(durationMin/60)}h {durationMin%60}m
-                  </div>
-                )}
-              </Card>
-
               {log.isManual && (
                 <Card style={{marginBottom:4}}>
                   <Lbl>Link to recipe (optional)</Lbl>

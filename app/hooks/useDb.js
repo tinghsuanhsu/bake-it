@@ -3,6 +3,7 @@ import { useCallback, useRef } from 'react';
 
 const DEBOUNCE_MS_RECIPE = 1200;
 const DEBOUNCE_MS_LOG    = 1200;
+const THROTTLE_MS_ACTIVE = 3000; // write active bake to DB at most every 3s
 
 export function useDb() {
   // ── Recipes ──────────────────────────────────────────────────────────────────
@@ -50,23 +51,48 @@ export function useDb() {
   }, [saveBakeLog]);
 
   // ── Active bake persistence ───────────────────────────────────────────────────
-  const activeBakeSaveTimer = useRef(null);
+  // Strategy:
+  //   1. Always write to localStorage immediately (fast, synchronous)
+  //   2. Throttle DB writes to every 3s so we're never more than 3s stale
+  //   3. On page hide/unload, flush to DB immediately via sendBeacon (no network delay)
+
+  const activeBakeThrottleTimer = useRef(null);
+  const activeBakeLastSent      = useRef(0);
+  const activeBakePending       = useRef(null); // last state not yet sent to DB
+
+  const sendToDb = useCallback((raw) => {
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: raw }),
+    }).catch(() => {});
+    activeBakeLastSent.current = Date.now();
+    activeBakePending.current  = null;
+  }, []);
 
   const saveActiveBake = useCallback((state) => {
     const raw = JSON.stringify(state);
+
+    // 1. localStorage — always immediate
     try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
-    clearTimeout(activeBakeSaveTimer.current);
-    activeBakeSaveTimer.current = setTimeout(() => {
-      fetch('/api/logs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: '__active_bake__', _activeBakeState: raw }),
-      }).catch(() => {});
-    }, 10_000);
-  }, []);
+
+    // 2. DB — throttled: send now if last send was >3s ago, otherwise schedule
+    activeBakePending.current = raw;
+    clearTimeout(activeBakeThrottleTimer.current);
+    const msSinceLast = Date.now() - activeBakeLastSent.current;
+    if (msSinceLast >= THROTTLE_MS_ACTIVE) {
+      sendToDb(raw);
+    } else {
+      activeBakeThrottleTimer.current = setTimeout(
+        () => { if (activeBakePending.current) sendToDb(activeBakePending.current); },
+        THROTTLE_MS_ACTIVE - msSinceLast,
+      );
+    }
+  }, [sendToDb]);
 
   const clearActiveBake = useCallback(() => {
-    clearTimeout(activeBakeSaveTimer.current);
+    clearTimeout(activeBakeThrottleTimer.current);
+    activeBakePending.current = null;
     try { localStorage.removeItem('bakeIt_activeBake'); } catch {}
     fetch('/api/logs', {
       method: 'POST',
@@ -75,16 +101,25 @@ export function useDb() {
     }).catch(() => {});
   }, []);
 
+  // Immediate flush — called on visibilitychange, pagehide, beforeunload
+  // sendBeacon is fire-and-forget and survives tab close / app suspend on iOS
   const flushActiveBake = useCallback((state) => {
-    // Immediate flush — used on visibilitychange (tab going to background)
-    clearTimeout(activeBakeSaveTimer.current);
+    clearTimeout(activeBakeThrottleTimer.current);
     const raw = JSON.stringify(state);
     try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
-    const blob = new Blob(
-      [JSON.stringify({ id: '__active_bake__', _activeBakeState: raw })],
-      { type: 'application/json' },
-    );
-    navigator.sendBeacon?.('/api/logs', blob);
+    const payload = JSON.stringify({ id: '__active_bake__', _activeBakeState: raw });
+    // sendBeacon — guaranteed delivery even on page unload
+    const sent = navigator.sendBeacon?.('/api/logs', new Blob([payload], { type: 'application/json' }));
+    // Fallback: keepalive fetch for browsers that don't support sendBeacon
+    if (!sent) {
+      fetch('/api/logs', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch(() => {});
+    }
+    activeBakeLastSent.current = Date.now();
+    activeBakePending.current  = null;
   }, []);
 
   return {
