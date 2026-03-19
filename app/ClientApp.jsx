@@ -137,7 +137,6 @@ export default function App() {
   const scanFileRef     = useRef(null);
   const scrollRef       = useRef(null);
   const activeBakeSaveTimer = useRef(null);
-  const swipeBackStartX = useRef(null);
 
   // ── DB hook ─────────────────────────────────────────────────────────────────
   const {
@@ -597,9 +596,6 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
             HOME / DASHBOARD
         ══════════════════════════════ */}
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────────
         {view===VIEWS.HOME && <div className="su">
 
           {/* Active Bake Banner — full bleed, most prominent */}
@@ -1198,14 +1194,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
               return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
             const fromDateTimeLocal = (val) => val ? new Date(val).getTime() : null;
-            return <div
-              onTouchStart={e=>{ swipeBackStartX.current=e.touches[0].clientX; }}
-              onTouchEnd={e=>{
-                const dx=e.changedTouches[0].clientX - swipeBackStartX.current;
-                if(dx>80) setViewingLog(null);
-                swipeBackStartX.current=null;
-              }}
-              style={{minHeight:"100%"}}>
+            return <>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
                 <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
                 <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
@@ -1467,7 +1456,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
               </button>
               <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
                 style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
-            </div>;
+            </>;
           })() : <>
 
           {/* Stats row */}
