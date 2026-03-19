@@ -137,6 +137,7 @@ export default function App() {
   const scanFileRef     = useRef(null);
   const scrollRef       = useRef(null);
   const activeBakeSaveTimer = useRef(null);
+  const swipeBackStartX = useRef(null);
 
   // ── DB hook ─────────────────────────────────────────────────────────────────
   const {
@@ -1185,7 +1186,14 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
               return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
             const fromDateTimeLocal = (val) => val ? new Date(val).getTime() : null;
-            return <>
+            return <div
+              onTouchStart={e=>{ swipeBackStartX.current=e.touches[0].clientX; }}
+              onTouchEnd={e=>{
+                const dx=e.changedTouches[0].clientX - swipeBackStartX.current;
+                if(dx>80) setViewingLog(null);
+                swipeBackStartX.current=null;
+              }}
+              style={{minHeight:"100%"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
                 <button onClick={()=>setViewingLog(null)} style={{width:34,height:34,borderRadius:10,background:"#EFEFED",color:"#283618",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}}>←</button>
                 <input value={log.recipeName||""} onChange={e=>updateLog({recipeName:e.target.value})}
@@ -1467,7 +1475,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
               </button>
               <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
                 style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
-            </>;
+            </div>;
           })() : <>
 
           {/* Stats row */}
@@ -1612,13 +1620,11 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
               })}
               {logSearch && savedLogs.filter(l=>l.id!=='__active_bake__' && (l.recipeName||"").toLowerCase().includes(logSearch.toLowerCase())).length===0 &&
                 <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>No bakes match "{logSearch}".</p></Card>}
-              {savedLogs.filter(l=>l.id!=='__active_bake__').length>4 && (
-                <button onClick={()=>scrollRef.current?.scrollTo({top:0,behavior:"smooth"})}
-                  style={{width:"100%",padding:"12px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:13,fontWeight:600,marginTop:4,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                  Back to top
-                </button>
-              )}
+              <button onClick={()=>scrollRef.current?.scrollTo({top:0,behavior:"smooth"})}
+                style={{width:"100%",padding:"12px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:13,fontWeight:600,marginTop:4,display:"flex",alignItems:"center",justifyContent:"center",gap:6,border:"none",cursor:"pointer"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                Back to top
+              </button>
             </div>
           ):(
             <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>Finish a bake to save it here.</p></Card>
