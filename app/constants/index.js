@@ -22,7 +22,7 @@ export const STARTER_DDT_C = {
   "starter-1":"26", "starter-2":"27", "starter-3":"24", "starter-4":"25", "starter-5":"24",
 };
 
-const FLOUR_DB = [
+export const FLOUR_DB = [
   {
     id:"f1", name:"Wallaby Baker's Flour", brand:"Laucke",
     type:"White Bread", sizes:["5kg"],
