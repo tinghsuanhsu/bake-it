@@ -680,7 +680,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
             const flourG          = r.ingredients.filter(i=>i.type==="flour").reduce((a,i)=>a+(parseFloat(i.grams)||0),0);
             const totalMin        = (r.autolyseEnabled?r.steps:r.steps.filter(s=>s.id!=="autolyse")).reduce((a,s)=>a+s.durationMin,0);
             return <div key={r.id} {...recipeDrag.getRowProps(ri)}>
-            <Card style={{padding:0,overflow:"hidden",border:isRecipeDropTarget?"2px solid #606c38":"1px solid #E0DED8",transition:"border 0.1s"}}>
+            <Card style={{padding:0,overflow:"hidden"}}>
               <div style={{padding:"16px 18px 14px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:10}}>
                   {/* Long-press drag handle */}
@@ -1460,8 +1460,13 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
                 </div>
               </Card>
 
+              <button onClick={()=>scrollRef.current?.scrollTo({top:0,behavior:"smooth"})}
+                style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:13,fontWeight:600,width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                Back to top
+              </button>
               <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
-                style={{marginTop:16,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
+                style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
             </>;
           })() : <>
 
