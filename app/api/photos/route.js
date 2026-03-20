@@ -3,6 +3,25 @@ export const dynamic = 'force-dynamic';
 import { getDb } from '../../../lib/db';
 import { validatePhotoPayload, errorResponse, isNonEmptyString, badRequest } from '../../../lib/apiValidation';
 
+// GET /api/photos?log_id=xxx — fetch all photos for a log
+export async function GET(req) {
+  const sql = getDb();
+  try {
+    const { searchParams } = new URL(req.url);
+    const log_id = searchParams.get('log_id');
+    if (!isNonEmptyString(log_id, 80)) throw badRequest('log_id required');
+    const rows = await sql`
+      SELECT id, log_id, step_id, caption, image_data
+      FROM photos
+      WHERE log_id = ${log_id}
+      ORDER BY created_at ASC
+    `;
+    return Response.json(rows);
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
 // POST /api/photos — save a photo attached to a log
 export async function POST(req) {
   const sql = getDb();

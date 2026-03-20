@@ -73,15 +73,18 @@ export function useDb() {
   const saveActiveBake = useCallback((state) => {
     const raw = JSON.stringify(state);
 
-    // 1. localStorage — always immediate
+    // 1. localStorage — always immediate, includes photos
     try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
 
-    // 2. DB — throttled: send now if last send was >3s ago, otherwise schedule
-    activeBakePending.current = raw;
+    // 2. DB — throttled, strip photos to stay under payload limit
+    // Photos are large (base64) — localStorage covers them; DB is the fallback for storage clears
+    const stateWithoutPhotos = { ...state, stepPhotos: {}, foldPhotos: {} };
+    const rawDb = JSON.stringify(stateWithoutPhotos);
+    activeBakePending.current = rawDb;
     clearTimeout(activeBakeThrottleTimer.current);
     const msSinceLast = Date.now() - activeBakeLastSent.current;
     if (msSinceLast >= THROTTLE_MS_ACTIVE) {
-      sendToDb(raw);
+      sendToDb(rawDb);
     } else {
       activeBakeThrottleTimer.current = setTimeout(
         () => { if (activeBakePending.current) sendToDb(activeBakePending.current); },
@@ -106,11 +109,12 @@ export function useDb() {
   const flushActiveBake = useCallback((state) => {
     clearTimeout(activeBakeThrottleTimer.current);
     const raw = JSON.stringify(state);
+    // localStorage gets the full state including photos
     try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
-    const payload = JSON.stringify({ id: '__active_bake__', _activeBakeState: raw });
-    // sendBeacon — guaranteed delivery even on page unload
+    // DB gets state without photos (size limit)
+    const stateWithoutPhotos = { ...state, stepPhotos: {}, foldPhotos: {} };
+    const payload = JSON.stringify({ id: '__active_bake__', _activeBakeState: JSON.stringify(stateWithoutPhotos) });
     const sent = navigator.sendBeacon?.('/api/logs', new Blob([payload], { type: 'application/json' }));
-    // Fallback: keepalive fetch for browsers that don't support sendBeacon
     if (!sent) {
       fetch('/api/logs', {
         method: 'POST', keepalive: true,
