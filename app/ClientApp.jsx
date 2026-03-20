@@ -1671,7 +1671,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
           </div>
 
           {/* Flour cards */}
-          {filtered.map(f=>{
+          {filteredFlours.map(f=>{
             const isOpen=expandedFlour===f.id;
             const pctOfMax=((f.protein-8)/6)*100; // 8–14g range
             return <Card key={f.id} style={{padding:0,overflow:"hidden"}}>
@@ -1749,7 +1749,7 @@ Convert all amounts to grams, durations to minutes. If no recipe found return {"
             </Card>;
           })}
 
-          {filtered.length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No flours match your search.</p></Card>}
+          {filteredFlours.length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No flours match your search.</p></Card>}
         </div>}
 
       </div>
