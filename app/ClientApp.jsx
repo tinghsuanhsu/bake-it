@@ -695,8 +695,7 @@ function useDrag({ items, onReorder, getLabel, getColor }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // APP
 // ─────────────────────────────────────────────────────────────────────────────
-'use client';
-import { useState, useEffect, useRef, useCallback } from "react";
+
 
 // ─── Module imports ────────────────────────────────────────────────────────────
 
