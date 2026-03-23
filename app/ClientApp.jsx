@@ -880,9 +880,6 @@ export default function App() {
         setSessionNotes(b.sessionNotes || '');
         setFoldNotes(b.foldNotes || {});
         setSteamDone(b.steamDone || false);
-        // Reset alarmFiredRef — any step that's already past its end time
-        // will be caught by the tick effect; future steps get wall-clock alarm
-        alarmFiredRef.current = {};
         if (b.sfDone) {
           const restored = {};
           Object.entries(b.sfDone).forEach(([k, v]) => {
@@ -1011,44 +1008,7 @@ export default function App() {
     }
   }, [bakeStarted]);
 
-  // ── Step alarm — wall-clock scheduled so it fires even when app is backgrounded ──
-  const scheduledAlarmRef = useRef(null); // { stepIdx, timerId }
-
-  const scheduleStepAlarm = useCallback((stepIdx) => {
-    // Cancel any previously scheduled alarm
-    clearTimeout(scheduledAlarmRef.current?.timerId);
-
-    if (!bakeRecipe || stepIdx == null || stepIdx >= bakeRecipe.steps.length) return;
-
-    const step     = bakeRecipe.steps[stepIdx];
-    const startTs  = stepStartTimes[stepIdx];
-    if (!startTs || !step) return;
-
-    const endTs    = startTs + step.durationMin * 60 * 1000;
-    const msUntil  = endTs - Date.now();
-    if (msUntil <= 0) return; // already past
-
-    const timerId = setTimeout(() => {
-      if (alarmFiredRef.current[stepIdx]) return;
-      alarmFiredRef.current[stepIdx] = true;
-      playAlarm();
-      fireNotification('Step complete', `${step.name} is done.`);
-    }, msUntil);
-
-    scheduledAlarmRef.current = { stepIdx, timerId };
-  }, [bakeRecipe, stepStartTimes]);
-
-  // Schedule alarm whenever the active step changes
-  useEffect(() => {
-    if (!bakeStarted || activeStep == null) {
-      clearTimeout(scheduledAlarmRef.current?.timerId);
-      return;
-    }
-    scheduleStepAlarm(activeStep);
-    return () => clearTimeout(scheduledAlarmRef.current?.timerId);
-  }, [bakeStarted, activeStep, scheduleStepAlarm]);
-
-  // Also fire immediately via tick in case the app was reopened after the timer expired
+  // ── Step alarm ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!bakeStarted || activeStep == null || !bakeRecipe) return;
     if (alarmFiredRef.current[activeStep]) return;
