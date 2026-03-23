@@ -840,9 +840,12 @@ export default function App() {
   const recipeDrag = useDrag({
     items:     recipes,
     onReorder: (next, from, to) => {
-      setRecipes(next);
+      // Stamp every recipe with its new position index so order survives reload
+      const stamped = next.map((r, i) => ({ ...r, sortOrder: i }));
+      setRecipes(stamped);
+      // Save all affected recipes (only those whose position changed)
       const lo = Math.min(from, to), hi = Math.max(from, to);
-      next.slice(lo, hi + 1).forEach(r => scheduleRecipeSave(r));
+      stamped.slice(lo, hi + 1).forEach(r => scheduleRecipeSave(r));
     },
     getLabel: i => recipes[i]?.name ?? '',
   });
@@ -925,6 +928,12 @@ export default function App() {
         const allRecipesLoaded = dbRecipes.length > 0
           ? [...patchedDbRecipes, ...missingStarters]
           : STARTER_RECIPES;
+
+        // Restore user-defined order if any recipes have sortOrder set
+        const hasSortOrder = allRecipesLoaded.some(r => r.sortOrder != null);
+        if (hasSortOrder) {
+          allRecipesLoaded.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+        }
 
         setRecipes(allRecipesLoaded);
 
