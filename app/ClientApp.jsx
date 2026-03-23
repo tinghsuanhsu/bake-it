@@ -480,6 +480,7 @@ function useDb() {
     const res = await fetch(`/api/logs/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      console.error('deleteLog failed:', res.status, err);
       throw new Error(err.error || `Delete failed (${res.status})`);
     }
   }, []);
@@ -903,13 +904,11 @@ export default function App() {
       } catch { return false; }
     };
 
-    // Run db-init in parallel with data fetches — it's idempotent and only
-    // needed on very first run. Don't block data loading on it.
-    fetch('/api/db-init').catch(() => {});
-    Promise.all([
+    fetch('/api/db-init')
+      .then(() => Promise.all([
         fetch('/api/recipes').then(r => r.json()),
         fetch('/api/logs').then(r => r.json()),
-      ])
+      ]))
       .then(([recipeData, logData]) => {
         const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
         const dbIds = new Set(dbRecipes.map(r => r.id));
@@ -1422,7 +1421,7 @@ export default function App() {
                   try {
                     await deleteRecipeDB(r.id);
                     setRecipes(rs=>rs.filter(x=>x.id!==r.id));
-                  } catch(e) { alert('Could not delete — please try again.'); }
+                  } catch(e) { alert('Delete failed: ' + (e.message || 'please try again')); }
                 }} style={{fontSize:12,color:"#9E3A3A",background:"none",fontWeight:600,flexShrink:0}}>Delete</button>
               </div>
             </Card>
@@ -2184,7 +2183,7 @@ export default function App() {
                     await deleteLogDB(viewingLog);
                     setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));
                     setViewingLog(null);
-                  } catch(e) { alert('Could not delete — please try again.'); }
+                  } catch(e) { alert('Delete failed: ' + (e.message || 'please try again')); }
                 }}
                 style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
             </>;
@@ -2292,7 +2291,7 @@ export default function App() {
                             await deleteLogDB(log.id);
                             setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));
                             setSwipedLogId(null);
-                          } catch(e) { setSwipedLogId(null); alert('Could not delete — please try again.'); }
+                          } catch(e) { setSwipedLogId(null); alert('Delete failed: ' + (e.message || 'please try again')); }
                         }}
                         style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 20px 0 12px",cursor:"pointer"}}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
