@@ -53,10 +53,7 @@ function makeStarterRecipes() {
   ];
 }
 
-const LEGACY_PREPEND_STEPS = [
-  { id:"starter_peak", name:"Starter Peak", duration:480, durationMin:480, sfCount:0, color:STEP_COLORS[0] },
-  { id:"make_levain",  name:"Make Levain",  duration:20,  durationMin:20,  sfCount:0, color:STEP_COLORS[1] },
-];
+// LEGACY_PREPEND_STEPS moved inside useEffect to avoid SSR init ordering issues
 
 
 /* ═══════════════════════════════════════════════════════
@@ -171,6 +168,10 @@ export default function App() {
   useEffect(() => {
     // Build starter recipes here (inside effect) so module imports are fully resolved
     const STARTER_RECIPES = makeStarterRecipes();
+    const LEGACY_PREPEND_STEPS = [
+      { id:"starter_peak", name:"Starter Peak", duration:480, durationMin:480, sfCount:0, color:STEP_COLORS[0] },
+      { id:"make_levain",  name:"Make Levain",  duration:20,  durationMin:20,  sfCount:0, color:STEP_COLORS[1] },
+    ];
 
     const restoreBake = (raw, allRecipesLoaded) => {
       try {
