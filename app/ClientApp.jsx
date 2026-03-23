@@ -1226,7 +1226,7 @@ export default function App() {
         <div style={{width:56,height:56,borderRadius:14,border:"2px solid rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}}>
           <span style={{fontSize:28,fontWeight:700,color:"#FFFFFF",fontFamily:"'Open Sans',sans-serif",letterSpacing:"-0.03em",lineHeight:1}}>B</span>
         </div>
-        <p style={{color:"rgba(255,255,255,0.6)",fontSize:14,fontFamily:"'Open Sans',sans-serif"}}>Loading your recipes…</p>
+        <p style={{color:"rgba(255,255,255,0.6)",fontSize:14,fontFamily:"'Open Sans',sans-serif"}}>Loading...</p>
       </div>
     )}
     <div style={{minHeight:"100vh",background:"#F8F8F6",fontFamily:"'Open Sans', sans-serif",color:"#283618"}}>
