@@ -1248,6 +1248,7 @@ export default function App() {
     <div style={{minHeight:"100vh",background:"#F8F8F6",fontFamily:"'Open Sans', sans-serif",color:"#283618"}}>
       <style>{`*{box-sizing:border-box;margin:0;padding:0}
         input,textarea,button,select{font-family:inherit}
+        input,textarea,select{font-size:16px!important}
         input,textarea,select{transition:border-color 0.2s}
         input:focus,textarea:focus,select:focus{outline:none;border-bottom-color:#606c38!important;background:transparent!important}
         input::placeholder,textarea::placeholder{color:#ACACAC}
