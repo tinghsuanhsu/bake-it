@@ -2168,7 +2168,13 @@ export default function App() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
                 Back to top
               </button>
-              <button onClick={()=>{deleteLogDB(viewingLog);setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));setViewingLog(null);}}
+              <button onClick={async()=>{
+                  try {
+                    await deleteLogDB(viewingLog);
+                    setSavedLogs(prev=>prev.filter(l=>l.id!==viewingLog));
+                    setViewingLog(null);
+                  } catch(e) { alert('Could not delete — please try again.'); }
+                }}
                 style={{marginTop:8,padding:"10px 16px",borderRadius:12,background:"#FFF0F0",color:"#9E3A3A",fontSize:13,fontWeight:600,width:"100%"}}>Delete this log</button>
             </>;
           })() : <>
@@ -2270,7 +2276,13 @@ export default function App() {
                   <div key={log.id} style={{position:"relative",marginBottom:0,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
                     {/* Delete button — extends left under the card so no square corners show */}
                     <div style={{position:"absolute",top:0,right:0,bottom:0,left:"-16px",background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"flex-end",borderRadius:"0 16px 16px 0"}}>
-                      <button onClick={()=>{deleteLogDB(log.id);setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));setSwipedLogId(null);}}
+                      <button onClick={async()=>{
+                          try {
+                            await deleteLogDB(log.id);
+                            setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));
+                            setSwipedLogId(null);
+                          } catch(e) { setSwipedLogId(null); alert('Could not delete — please try again.'); }
+                        }}
                         style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:4,color:"#FFFFFF",padding:"0 20px 0 12px",cursor:"pointer"}}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                         <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.04em"}}>DELETE</span>
