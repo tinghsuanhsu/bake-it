@@ -1,6 +1,6 @@
 // ─── Pure utility functions ────────────────────────────────────────────────────
-
-import { DEFAULT_STEPS, STEP_COLORS } from '../constants';
+// No imports from ./constants — avoids circular dependency that causes
+// "cannot access before initialization" in the bundled output.
 
 // ── ID / formatting ────────────────────────────────────────────────────────────
 export const uid     = () => Math.random().toString(36).slice(2, 9);
@@ -52,22 +52,36 @@ export const compressImage = (file, maxPx = 1200, quality = 0.75) =>
     reader.readAsDataURL(file);
   });
 
-// ── Recipe factory ────────────────────────────────────────────────────────────
+// ── makeRecipe — inlines DEFAULT_STEPS and STEP_COLORS to avoid circular import ──
+const _STEP_COLORS = ['#3A7A58','#5E9E6A','#5C5C5C','#606c38','#8A8A8A','#283618','#787878','#4A6628','#A0A0A0','#7A8A48'];
+const _DEFAULT_STEPS = [
+  { id:'starter_peak', name:'Starter Peak',       duration:480 },
+  { id:'make_levain',  name:'Make Levain',        duration:20  },
+  { id:'autolyse',     name:'Autolyse',           duration:30  },
+  { id:'levain_mix',   name:'Levain + Mix',       duration:20  },
+  { id:'bulk',         name:'Bulk Ferment',       duration:240, sfCount:5 },
+  { id:'divide',       name:'Divide & Pre-shape', duration:30  },
+  { id:'shape',        name:'Pre-shape',          duration:15  },
+  { id:'proof',        name:'Shape',              duration:60  },
+  { id:'retard',       name:'Retard',             duration:720 },
+  { id:'bake',         name:'Bake',               duration:45  },
+];
+
 export const makeRecipe = () => ({
   id: uid(),
   name: 'New Recipe',
   loaves: '2', loafG: '900', ddt: '26',
   ingredients: [
-    { id: uid(), type: 'flour', flourId: 'f2',  label: 'White Baker\'s Flour', grams: '1000' },
+    { id: uid(), type: 'flour', flourId: 'f2',  label: "White Baker's Flour", grams: '1000' },
     { id: uid(), type: 'other', flourId: null,   label: 'Water',               grams: '750'  },
     { id: uid(), type: 'other', flourId: null,   label: 'Salt',                grams: '20'   },
     { id: uid(), type: 'other', flourId: null,   label: 'Levain',              grams: '200'  },
   ],
   levain: { flour: '100', water: '100', starter: '20', duration: '12' },
   levainRating: 0, levainNotes: '',
-  steps: DEFAULT_STEPS.map((s, i) => ({ sfCount: 0, ...s, durationMin: s.duration, color: STEP_COLORS[i] })),
+  steps: _DEFAULT_STEPS.map((s, i) => ({ sfCount: 0, ...s, durationMin: s.duration, color: _STEP_COLORS[i] })),
   autolyseEnabled: true,
-  stepUnit: Object.fromEntries(DEFAULT_STEPS.map(s => [s.id, 'min'])),
+  stepUnit: Object.fromEntries(_DEFAULT_STEPS.map(s => [s.id, 'min'])),
   notes: '',
   tempUnit: 'C',
 });

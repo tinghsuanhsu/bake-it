@@ -66,6 +66,7 @@ export default function App() {
   // ── Navigation ──────────────────────────────────────────────────────────────
   const [view, setView] = useState(() => {
     try {
+      if (typeof window === 'undefined') return VIEWS.RECIPES;
       const saved = localStorage.getItem('bakeIt_view');
       return saved && Object.values(VIEWS).includes(saved) ? saved : VIEWS.RECIPES;
     } catch { return VIEWS.RECIPES; }
