@@ -1,13 +1,704 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── App-wide constants ───────────────────────────────────────────────────────
+
+const VIEWS = { HOME:"home", RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients" };
+
+const STEP_COLORS = ["#3A7A58","#5E9E6A","#5C5C5C","#606c38","#8A8A8A","#283618","#787878","#4A6628","#A0A0A0","#7A8A48"];
+
+const DEFAULT_STEPS = [
+  { id:"starter_peak", name:"Starter Peak",       duration:480 },
+  { id:"make_levain",  name:"Make Levain",        duration:20  },
+  { id:"autolyse",     name:"Autolyse",           duration:30  },
+  { id:"levain_mix",   name:"Levain + Mix",       duration:20  },
+  { id:"bulk",         name:"Bulk Ferment",       duration:240, sfCount:5 },
+  { id:"divide",       name:"Divide & Pre-shape", duration:30  },
+  { id:"shape",        name:"Pre-shape",          duration:15  },
+  { id:"proof",        name:"Shape",              duration:60  },
+  { id:"retard",       name:"Retard",             duration:720 },
+  { id:"bake",         name:"Bake",               duration:45  },
+];
+
+// Desired dough temperature defaults per starter recipe (Celsius)
+const STARTER_DDT_C = {
+  "starter-1":"26", "starter-2":"27", "starter-3":"24", "starter-4":"25", "starter-5":"24",
+};
+
+const FLOUR_DB = [
+  {
+    id:"f1", name:"Wallaby Baker's Flour", brand:"Laucke",
+    type:"White Bread", sizes:["5kg"],
+    where:"Woolworths, IGA, independents",
+    protein:11.5, energy:1420, fat:1.2, carbs:72, fibre:2.8, sodium:2,
+    sourdoughRating:3, colour:"#F5E6C8",
+    description:"Australia's most widely available home baker's flour. A reliable everyday performer for sourdough and yeasted breads. Solid choice if specialty flour is out of reach.",
+    tips:"Works well at 75–78% hydration. Add 7g vital wheat gluten per kg to improve crumb structure.",
+  },
+  {
+    id:"f2", name:"White Baker's Flour", brand:"Defiance",
+    type:"White Bread", sizes:["5kg"],
+    where:"Woolworths, some Coles, IGA",
+    protein:11.7, energy:1430, fat:1.1, carbs:73, fibre:2.5, sodium:2,
+    sourdoughRating:3, colour:"#F0DDB5",
+    description:"Long-time Aussie home baker favourite. As of 2024 protein dropped to 11.7% (was 12.5%). Still produces a decent loaf but crumb is tighter than before.",
+    tips:"Add 9g vital wheat gluten per kg or substitute 50g water with an egg to compensate for lower protein.",
+  },
+  {
+    id:"f3", name:"Euro T55 (LCSPA)", brand:"Laucke",
+    type:"White Bread (T55)", sizes:["5kg"],
+    where:"Specialty stores, Hindu­stan Imports (Melbourne), online",
+    protein:12.0, energy:1440, fat:1.0, carbs:74, fibre:2.2, sodium:2,
+    sourdoughRating:5, colour:"#EDD9A3",
+    description:"A French-style T55 flour prized by Australian sourdough bakers. Excellent for open crumb structure and long fermentation. Consistent quality batch to batch.",
+    tips:"Start at 75% hydration. Handles high-hydration doughs well. Great for overnight retard.",
+  },
+  {
+    id:"f4", name:"Organic Premium Baker's White Flour", brand:"Demeter Farm Mill / Wholegrain Milling Co.",
+    type:"Organic White Bread", sizes:["5kg","12.5kg"],
+    where:"Online (home delivery), health food stores, Harris Farm",
+    protein:12.0, energy:1410, fat:1.1, carbs:72, fibre:2.8, sodium:1,
+    sourdoughRating:5, colour:"#F2E2B0",
+    description:"Previously the #1 go-to for serious Aussie sourdough bakers. As of 2024 protein is around 12% (was ~12.5%). Certified organic, Australian grown, stone milled in Gunnedah NSW. Rich flavour.",
+    tips:"Add 7g vital wheat gluten per kg if you notice loaves are flatter than expected. Excellent for long cold fermentation.",
+  },
+  {
+    id:"f5", name:"Organic Stoneground White Baker's Flour", brand:"Wholegrain Milling Co.",
+    type:"Organic Stoneground White", sizes:["5kg"],
+    where:"Harris Farm, organic stores, online",
+    protein:12.0, energy:1400, fat:1.3, carbs:71, fibre:3.2, sodium:1,
+    sourdoughRating:5, colour:"#E8D49A",
+    description:"Same flour as Demeter Farm Mill, rebranded. Stone-milled in Gunnedah NSW. Retains germ and fine bran for extra flavour and nutrition. 100% Australian grown, certified organic.",
+    tips:"Slightly more complex flavour than roller-milled flour. Works beautifully for rustic country loaves at 72–76% hydration.",
+  },
+  {
+    id:"f6", name:"Stoneground White Heritage Flour", brand:"Wholegrain Milling Co.",
+    type:"Stoneground Heritage White", sizes:["5kg"],
+    where:"Specialty stores, online",
+    protein:13.2, energy:1405, fat:1.2, carbs:70, fibre:3.5, sodium:1,
+    sourdoughRating:5, colour:"#DFD09A",
+    description:"Pre-1960 wheat variety, unmodified genetics. 13.2% protein — one of the highest available to Aussie home bakers. Exceptional dough strength and flavour.",
+    tips:"High protein means it can handle 80%+ hydration. A premium option for ambitious open-crumb bakes.",
+  },
+  {
+    id:"f7", name:"White Bread Flour", brand:"Brero (Basic Ingredients)",
+    type:"High-Protein White Bread", sizes:["1kg","5kg"],
+    where:"basicingredients.com.au, selected specialty stores",
+    protein:13.5, energy:1445, fat:1.0, carbs:74, fibre:2.3, sodium:2,
+    sourdoughRating:5, colour:"#EDD9A3",
+    description:"Specifically formulated for sourdough baking. Protein ranges 13.3–13.7% with absorption up to 70%. Designed for long fermentation, not commercial fast-dough process.",
+    tips:"Purpose-built for sourdough. Excellent extensibility. Start at 75%, work up to 82% once comfortable.",
+  },
+  {
+    id:"f8", name:"High Protein White Bread Flour", brand:"Flinders Ranges Premium Grain",
+    type:"High-Protein White Bread", sizes:["2kg","20kg"],
+    where:"youkneadsourdough.com.au, bakerstreat.com.au",
+    protein:12.5, energy:1440, fat:1.1, carbs:73, fibre:2.4, sodium:2,
+    sourdoughRating:5, colour:"#EEDDA5",
+    description:"Single-origin flour from the Flinders Ranges, SA. Traceable paddock-to-baker. Bred for high protein and dough strength. Great tolerance for long mixing and fermentation.",
+    tips:"Shorter best-before (6 months from milling) than other brands. Buy fresh. Excellent water absorption.",
+  },
+  {
+    id:"f9", name:"Victory Premium Baker's Flour", brand:"MAURI",
+    type:"Professional White Bread", sizes:["5kg","12.5kg","25kg"],
+    where:"Foodservice suppliers, some specialty stores",
+    protein:12.2, energy:1445, fat:1.0, carbs:74, fibre:2.3, sodium:2,
+    sourdoughRating:5, colour:"#F0E0B0",
+    description:"Used by professional artisan bakeries across Australia. Protein 11.5–12.8% (consistently high). Exceptional dough strength and extensibility. 100% Australian grown wheat.",
+    tips:"The professional's choice. If you can source it, it produces reliably excellent loaves every bake.",
+  },
+  {
+    id:"f10", name:"Organic Wholemeal Baker's Flour", brand:"Laucke",
+    type:"Wholemeal Bread", sizes:["5kg"],
+    where:"Health food stores, online",
+    protein:13.0, energy:1380, fat:2.0, carbs:65, fibre:9.5, sodium:2,
+    sourdoughRating:4, colour:"#C8A96E",
+    description:"High-protein wholemeal for nutritious, flavourful loaves. Dense texture if used alone — best blended with white flour (up to 30%) for lighter results.",
+    tips:"Substitute up to 30% of white flour for complex flavour and nutrition. Increase hydration by 3–5% when adding wholemeal.",
+  },
+  {
+    id:"f11", name:"Organic Whole Rye Flour", brand:"Laucke",
+    type:"Whole Rye", sizes:["5kg"],
+    where:"Health food stores, online",
+    protein:9.5, energy:1340, fat:1.7, carbs:66, fibre:13.0, sodium:2,
+    sourdoughRating:4, colour:"#A08060",
+    description:"Whole rye flour for dense, deeply flavoured loaves. Very high fibre — pentosans absorb water aggressively. Blend with wheat flour for accessible rye character.",
+    tips:"Use 10–20% rye in your white sourdough for flavour complexity. Increase hydration by 5–8% when adding rye.",
+  },
+  {
+    id:"f12", name:"Barossa Light Rye Flour", brand:"Laucke",
+    type:"Light Rye", sizes:["4 × 600g"],
+    where:"Woolworths, IGA",
+    protein:8.8, energy:1330, fat:1.5, carbs:68, fibre:8.5, sodium:2,
+    sourdoughRating:3, colour:"#B09070",
+    description:"Light rye available at major supermarkets. Great for adding flavour and complexity without the density of whole rye. The most accessible rye flour in Australia.",
+    tips:"Easy gateway into rye sourdough. Add 10–15% to a white loaf for noticeable depth without compromising structure.",
+  },
+  {
+    id:"f13", name:"Organic Unbleached White Spelt Flour", brand:"Laucke",
+    type:"Spelt", sizes:["5kg"],
+    where:"Health food stores, online",
+    protein:11.0, energy:1390, fat:1.8, carbs:68, fibre:4.5, sodium:2,
+    sourdoughRating:3, colour:"#D4B896",
+    description:"Ancient grain with nutty, slightly sweet flavour. Gluten is more fragile than wheat — handle gently. Naturally produces a flatter loaf. Excellent unique flavour profile.",
+    tips:"Do not over-ferment spelt dough — gluten breaks down faster. Keep bulk at cooler temperatures.",
+  },
+  {
+    id:"f14", name:"Bread & Pizza Plain Flour", brand:"Lighthouse",
+    type:"Supermarket Bread Flour", sizes:["1kg"],
+    where:"Woolworths, Coles, IGA — nationwide",
+    protein:11.5, energy:1415, fat:1.0, carbs:73, fibre:2.5, sodium:2,
+    sourdoughRating:2, colour:"#F5ECD8",
+    description:"Most accessible bread flour in Australia — found everywhere. Protein at 11–12% is adequate for sourdough. Mix 50/50 with the Lighthouse Wholemeal version for better results.",
+    tips:"For best sourdough results, blend 50% white + 50% wholemeal versions. Adds nutrients and helps rise with lower protein.",
+  },
+  /* ── WHOLEMEAL ── */
+  {
+    id:"f15", name:"Organic Wholemeal Flour", brand:"Demeter Farm Mill / Wholegrain Milling Co.",
+    type:"Wholemeal", sizes:["5kg","12.5kg"],
+    where:"Online, Harris Farm, health food stores",
+    protein:13.5, energy:1370, fat:2.2, carbs:63, fibre:10.2, sodium:1,
+    sourdoughRating:4, colour:"#BFA070",
+    description:"Stone-milled organic wholemeal from Gunnedah NSW. High protein and full of natural flavour. Retains bran, germ, and endosperm for maximum nutrition.",
+    tips:"Blend 20–30% with white flour for a flavourful open crumb. Increase hydration by 4–5% when using wholemeal.",
+  },
+  {
+    id:"f16", name:"Wholemeal Plain Flour", brand:"Lighthouse",
+    type:"Wholemeal", sizes:["1kg"],
+    where:"Woolworths, Coles, IGA — nationwide",
+    protein:12.5, energy:1360, fat:2.0, carbs:64, fibre:9.8, sodium:2,
+    sourdoughRating:3, colour:"#C4A06A",
+    description:"Most available wholemeal flour in Australia. Decent protein for supermarket flour. Works well blended 50/50 with the Lighthouse Bread flour for a nutritious everyday loaf.",
+    tips:"Great entry point into wholemeal sourdough. Mix half-and-half with white bread flour for balanced results.",
+  },
+  {
+    id:"f17", name:"Stoneground Wholemeal Baker's Flour", brand:"Wholegrain Milling Co.",
+    type:"Wholemeal", sizes:["5kg"],
+    where:"Specialty stores, online",
+    protein:13.0, energy:1375, fat:2.1, carbs:64, fibre:9.5, sodium:1,
+    sourdoughRating:5, colour:"#B89060",
+    description:"Premium stoneground wholemeal milled in Gunnedah NSW. Excellent bran particle size for sourdough — not too coarse, retains gas well. Full-flavoured, nutty loaves.",
+    tips:"Can be used up to 50% of total flour for a beautiful wholemeal sourdough. Autolyse 30–45 min to fully hydrate the bran.",
+  },
+  /* ── SPELT ── */
+  {
+    id:"f18", name:"Organic Wholemeal Spelt Flour", brand:"Laucke",
+    type:"Spelt", sizes:["5kg"],
+    where:"Health food stores, online",
+    protein:12.5, energy:1380, fat:2.2, carbs:65, fibre:7.5, sodium:2,
+    sourdoughRating:3, colour:"#C8A87A",
+    description:"Wholemeal spelt with even more nutty depth than white spelt. Higher fibre, rich earthy flavour. Fragile gluten network — treat gently and keep fermentation shorter.",
+    tips:"Blend max 30% with strong white flour. Avoid over-proofing. Cold retard (4°C) works well to control fermentation speed.",
+  },
+  {
+    id:"f19", name:"White Spelt Flour", brand:"The Source Bulk Foods",
+    type:"Spelt", sizes:["per kg bulk"],
+    where:"The Source Bulk Foods (50+ stores nationally)",
+    protein:11.2, energy:1385, fat:1.9, carbs:67, fibre:4.8, sodium:2,
+    sourdoughRating:3, colour:"#D4B896",
+    description:"Organic white spelt available in bulk — buy exactly what you need. Same ancient grain characteristics: nutty, sweet, fragile gluten. Often more digestible than modern wheat for sensitive individuals.",
+    tips:"Short autolyse (15 min) helps hydration without overdeveloping fragile spelt gluten. Use a gentler shaping technique.",
+  },
+  /* ── RYE ── */
+  {
+    id:"f20", name:"Dark Rye Flour", brand:"Wholegrain Milling Co.",
+    type:"Rye", sizes:["5kg"],
+    where:"Specialty stores, online",
+    protein:10.0, energy:1345, fat:1.8, carbs:65, fibre:14.5, sodium:1,
+    sourdoughRating:4, colour:"#8A6848",
+    description:"Dark rye with intense flavour and very high fibre. Milled in Gunnedah NSW. Stickier dough due to high pentosan content — more water absorption than standard rye flour.",
+    tips:"Start with 10–20% rye in a white base dough. At higher percentages, use a tin for structure. Rye starters fed on this flour are very active.",
+  },
+  {
+    id:"f21", name:"Organic Rye Flour", brand:"The Source Bulk Foods",
+    type:"Rye", sizes:["per kg bulk"],
+    where:"The Source Bulk Foods (50+ stores nationally)",
+    protein:9.8, energy:1340, fat:1.7, carbs:66, fibre:13.2, sodium:2,
+    sourdoughRating:3, colour:"#9A7858",
+    description:"Organic rye available in bulk quantities. Good everyday rye flour for adding character to sourdough without committing to a large bag. Slightly lighter than dark rye.",
+    tips:"Great for a 10% rye addition to white sourdough for extra flavour. Also excellent for feeding rye-based starters.",
+  },
+];
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── Pure utility functions ────────────────────────────────────────────────────
+// No imports from ./constants — avoids circular dependency that causes
+// "cannot access before initialization" in the bundled output.
+
+// ── ID / formatting ────────────────────────────────────────────────────────────
+const uid     = () => Math.random().toString(36).slice(2, 9);
+const fmt2    = n  => String(n).padStart(2, '0');
+const bkPct   = (g, base) => base ? ((g / base) * 100).toFixed(1) : '—';
+const timeStr = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const fmtTime = s => {
+  if (s <= 0) return '0:00';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h > 0 ? `${h}:${fmt2(m)}:${fmt2(sec)}` : `${m}:${fmt2(sec)}`;
+};
+
+const fmtDur = min => {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+};
+
+// ── datetime-local helpers ─────────────────────────────────────────────────────
+const toDateTimeLocal = ts => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+const fromDateTimeLocal = val => (val ? new Date(val).getTime() : null);
+
+// ── Image compression ─────────────────────────────────────────────────────────
+const compressImage = (file, maxPx = 1200, quality = 0.75) =>
+  new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else       { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+// ── makeRecipe — inlines DEFAULT_STEPS and STEP_COLORS to avoid circular import ──
+const _STEP_COLORS = ['#3A7A58','#5E9E6A','#5C5C5C','#606c38','#8A8A8A','#283618','#787878','#4A6628','#A0A0A0','#7A8A48'];
+const _DEFAULT_STEPS = [
+  { id:'starter_peak', name:'Starter Peak',       duration:480 },
+  { id:'make_levain',  name:'Make Levain',        duration:20  },
+  { id:'autolyse',     name:'Autolyse',           duration:30  },
+  { id:'levain_mix',   name:'Levain + Mix',       duration:20  },
+  { id:'bulk',         name:'Bulk Ferment',       duration:240, sfCount:5 },
+  { id:'divide',       name:'Divide & Pre-shape', duration:30  },
+  { id:'shape',        name:'Pre-shape',          duration:15  },
+  { id:'proof',        name:'Shape',              duration:60  },
+  { id:'retard',       name:'Retard',             duration:720 },
+  { id:'bake',         name:'Bake',               duration:45  },
+];
+
+const makeRecipe = () => ({
+  id: uid(),
+  name: 'New Recipe',
+  loaves: '2', loafG: '900', ddt: '26',
+  ingredients: [
+    { id: uid(), type: 'flour', flourId: 'f2',  label: "White Baker's Flour", grams: '1000' },
+    { id: uid(), type: 'other', flourId: null,   label: 'Water',               grams: '750'  },
+    { id: uid(), type: 'other', flourId: null,   label: 'Salt',                grams: '20'   },
+    { id: uid(), type: 'other', flourId: null,   label: 'Levain',              grams: '200'  },
+  ],
+  levain: { flour: '100', water: '100', starter: '20', duration: '12' },
+  levainRating: 0, levainNotes: '',
+  steps: _DEFAULT_STEPS.map((s, i) => ({ sfCount: 0, ...s, durationMin: s.duration, color: _STEP_COLORS[i] })),
+  autolyseEnabled: true,
+  stepUnit: Object.fromEntries(_DEFAULT_STEPS.map(s => [s.id, 'min'])),
+  notes: '',
+  tempUnit: 'C',
+});
+
+// ── Reorder helper (immutable) ────────────────────────────────────────────────
+const reorder = (arr, from, to) => {
+  const next = [...arr];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI PRIMITIVES
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── Shared UI primitives ────────────────────────────────────────────────────
+
+const Card = ({ children, style = {}, ...rest }) => (
+  <div style={{
+    background: '#FFFFFF', borderRadius: 20, border: '1px solid #E0DED8',
+    padding: 20, marginBottom: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
+    ...style,
+  }} {...rest}>
+    {children}
+  </div>
+);
+
+const Lbl = ({ children, style = {} }) => (
+  <div style={{
+    fontSize: 11, fontWeight: 600, color: '#606c38',
+    textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6,
+    ...style,
+  }}>
+    {children}
+  </div>
+);
+
+const SecH = ({ children, style = {} }) => (
+  <div style={{ fontSize: 13, fontWeight: 600, color: '#606c38', margin: '20px 0 8px', paddingLeft: 4, ...style }}>
+    {children}
+  </div>
+);
+
+const Inp = ({ value, onChange, type = 'text', placeholder = '', style = {} }) => (
+  <input
+    value={value} onChange={onChange} type={type} placeholder={placeholder}
+    style={{
+      background: 'transparent', border: 'none', borderBottom: '2px solid #E0DED8',
+      borderRadius: 0, padding: '6px 2px', fontSize: 15, color: '#283618',
+      fontFamily: 'inherit', outline: 'none', width: '100%',
+      ...style,
+    }}
+  />
+);
+
+const Badge = ({ children, color = '#5C5C5C' }) => (
+  <span style={{
+    background: color + '18', color, fontSize: 11, fontWeight: 600,
+    borderRadius: 8, padding: '3px 9px', display: 'inline-block',
+  }}>
+    {children}
+  </span>
+);
+
+const Stat = ({ label, value, highlight, color }) => (
+  <div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: '#606c38', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: highlight ? '#9E3A3A' : (color || '#FFFFFF') }}>
+      {value}
+    </div>
+  </div>
+);
+
+function Stars({ count, max = 5, color = '#5C5C5C', size = 14 }) {
+  return (
+    <span>
+      {[...Array(max)].map((_, i) => (
+        <span key={i} style={{ fontSize: size, color: i < count ? color : '#E0DED8' }}> ★</span>
+      ))}
+    </span>
+  );
+}
+
+function Ring({ progress, size = 130, stroke = 11, color = '#5C5C5C', children }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.max(0, Math.min(1, progress)));
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', position: 'absolute', inset: 0 }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#E0DED8" strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1)' }}/>
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── DragHandle icon ────────────────────────────────────────────────────────────
+const DragHandle = ({ color = '#BBBBAA', ...props }) => (
+  <div style={{ padding: '6px 4px', color, flexShrink: 0, ...props.style }} {...props}>
+    <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
+      <rect y="0" width="16" height="2" rx="1"/>
+      <rect y="5" width="16" height="2" rx="1"/>
+      <rect y="10" width="16" height="2" rx="1"/>
+    </svg>
+  </div>
+);
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useDb HOOK
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── useDb — all server persistence logic in one place ────────────────────────
+
+const DEBOUNCE_MS_RECIPE = 1200;
+const DEBOUNCE_MS_LOG    = 1200;
+const THROTTLE_MS_ACTIVE = 3000; // write active bake to DB at most every 3s
+
+function useDb() {
+  // ── Recipes ──────────────────────────────────────────────────────────────────
+  const saveRecipe = useCallback(async recipe => {
+    try {
+      await fetch('/api/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recipe),
+      });
+    } catch (e) { console.warn('saveRecipe failed:', e); }
+  }, []);
+
+  const deleteRecipeDB = useCallback(async id => {
+    try { await fetch(`/api/recipes/${id}`, { method: 'DELETE' }); }
+    catch (e) { console.warn('deleteRecipe failed:', e); }
+  }, []);
+
+  const recipeSaveTimers = useRef({});
+  const scheduleRecipeSave = useCallback((recipe) => {
+    clearTimeout(recipeSaveTimers.current[recipe.id]);
+    recipeSaveTimers.current[recipe.id] = setTimeout(() => saveRecipe(recipe), DEBOUNCE_MS_RECIPE);
+  }, [saveRecipe]);
+
+  // ── Bake logs ─────────────────────────────────────────────────────────────────
+  const saveBakeLog = useCallback(async log => {
+    try {
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(log),
+      });
+    } catch (e) { console.warn('saveBakeLog failed:', e); }
+  }, []);
+
+  const deleteLogDB = useCallback(async id => {
+    try { await fetch(`/api/logs/${id}`, { method: 'DELETE' }); }
+    catch (e) { console.warn('deleteLog failed:', e); }
+  }, []);
+
+  const logSaveTimers = useRef({});
+  const scheduleLogSave = useCallback((log) => {
+    clearTimeout(logSaveTimers.current[log.id]);
+    logSaveTimers.current[log.id] = setTimeout(() => saveBakeLog(log), DEBOUNCE_MS_LOG);
+  }, [saveBakeLog]);
+
+  // ── Active bake persistence ───────────────────────────────────────────────────
+  // Strategy:
+  //   1. Always write to localStorage immediately (fast, synchronous)
+  //   2. Throttle DB writes to every 3s so we're never more than 3s stale
+  //   3. On page hide/unload, flush to DB immediately via sendBeacon (no network delay)
+
+  const activeBakeThrottleTimer = useRef(null);
+  const activeBakeLastSent      = useRef(0);
+  const activeBakePending       = useRef(null); // last state not yet sent to DB
+
+  const sendToDb = useCallback((raw) => {
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: raw }),
+    }).catch(() => {});
+    activeBakeLastSent.current = Date.now();
+    activeBakePending.current  = null;
+  }, []);
+
+  const saveActiveBake = useCallback((state) => {
+    const raw = JSON.stringify(state);
+
+    // 1. localStorage — always immediate, includes photos
+    try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
+
+    // 2. DB — throttled, strip photos to stay under payload limit
+    // Photos are large (base64) — localStorage covers them; DB is the fallback for storage clears
+    const stateWithoutPhotos = { ...state, stepPhotos: {}, foldPhotos: {} };
+    const rawDb = JSON.stringify(stateWithoutPhotos);
+    activeBakePending.current = rawDb;
+    clearTimeout(activeBakeThrottleTimer.current);
+    const msSinceLast = Date.now() - activeBakeLastSent.current;
+    if (msSinceLast >= THROTTLE_MS_ACTIVE) {
+      sendToDb(rawDb);
+    } else {
+      activeBakeThrottleTimer.current = setTimeout(
+        () => { if (activeBakePending.current) sendToDb(activeBakePending.current); },
+        THROTTLE_MS_ACTIVE - msSinceLast,
+      );
+    }
+  }, [sendToDb]);
+
+  const clearActiveBake = useCallback(() => {
+    clearTimeout(activeBakeThrottleTimer.current);
+    activeBakePending.current = null;
+    try { localStorage.removeItem('bakeIt_activeBake'); } catch {}
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: null, _deleted: true }),
+    }).catch(() => {});
+  }, []);
+
+  // Immediate flush — called on visibilitychange, pagehide, beforeunload
+  // sendBeacon is fire-and-forget and survives tab close / app suspend on iOS
+  const flushActiveBake = useCallback((state) => {
+    clearTimeout(activeBakeThrottleTimer.current);
+    const raw = JSON.stringify(state);
+    // localStorage gets the full state including photos
+    try { localStorage.setItem('bakeIt_activeBake', raw); } catch {}
+    // DB gets state without photos (size limit)
+    const stateWithoutPhotos = { ...state, stepPhotos: {}, foldPhotos: {} };
+    const payload = JSON.stringify({ id: '__active_bake__', _activeBakeState: JSON.stringify(stateWithoutPhotos) });
+    const sent = navigator.sendBeacon?.('/api/logs', new Blob([payload], { type: 'application/json' }));
+    if (!sent) {
+      fetch('/api/logs', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      }).catch(() => {});
+    }
+    activeBakeLastSent.current = Date.now();
+    activeBakePending.current  = null;
+  }, []);
+
+  return {
+    saveRecipe, deleteRecipeDB, scheduleRecipeSave,
+    saveBakeLog, deleteLogDB, scheduleLogSave,
+    saveActiveBake, clearActiveBake, flushActiveBake,
+  };
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useDrag HOOK
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── useDrag — reusable long-press drag-to-reorder hook ─────────────────────
+// Returns props to attach to each draggable row and a ghost element to render.
+//
+// Usage:
+//   const { getRowProps, ghostEl, listRef } = useDrag({ items, onReorder, ghostLabel });
+//   <div ref={listRef}> {items.map((item, i) => <div {...getRowProps(i)}>…</div>)} </div>
+//   {ghostEl}
+
+
+const LONG_PRESS_MS = 350;
+const CANCEL_THRESHOLD_PX = 6;
+
+function useDrag({ items, onReorder, getLabel, getColor }) {
+  const dragRef      = useRef(null);
+  const dragOverRef  = useRef(null);
+  const timerRef     = useRef(null);
+  const listRef      = useRef(null);
+
+  const [ghost,    setGhost]    = useState(null); // { idx, floatY, label, color }
+  const [overIdx,  setOverIdx]  = useState(null);
+
+  const isDragging  = idx => ghost?.idx === idx;
+  const isDropTarget = idx => overIdx === idx && ghost?.idx !== idx;
+
+  const getRowProps = idx => ({
+    'data-drag-row': true,
+    style: {
+      opacity:    isDragging(idx)  ? 0.25 : 1,
+      background: isDropTarget(idx) ? '#F0F5EE' : undefined,
+      transition: 'opacity 0.15s, background 0.1s',
+    },
+  });
+
+  const handleTouchStart = (idx, e) => {
+    const t = e.touches[0];
+    dragRef.current = { pending: true, idx, startY: t.clientY, floatY: t.clientY };
+    timerRef.current = setTimeout(() => {
+      if (!dragRef.current?.pending) return;
+      dragRef.current.pending = false;
+      dragRef.current.active  = true;
+      dragOverRef.current     = idx;
+      if (navigator.vibrate) navigator.vibrate(30);
+      setGhost({ idx, floatY: t.clientY, label: getLabel?.(idx) ?? '', color: getColor?.(idx) });
+      setOverIdx(idx);
+    }, LONG_PRESS_MS);
+  };
+
+  const handleTouchMove = e => {
+    if (!dragRef.current) return;
+    const t = e.touches[0];
+    if (dragRef.current.pending) {
+      if (Math.abs(t.clientY - dragRef.current.startY) > CANCEL_THRESHOLD_PX) {
+        clearTimeout(timerRef.current);
+        dragRef.current = null;
+      }
+      return;
+    }
+    if (!dragRef.current.active) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current.floatY = t.clientY;
+
+    // Update drop target by hit-testing rows
+    listRef.current?.querySelectorAll('[data-drag-row]').forEach((row, i) => {
+      const rect = row.getBoundingClientRect();
+      if (t.clientY >= rect.top && t.clientY <= rect.bottom) {
+        dragOverRef.current = i;
+        setOverIdx(i);
+      }
+    });
+
+    // Move ghost via DOM for zero-lag position update
+    const ghostEl = document.getElementById('drag-ghost');
+    if (ghostEl) ghostEl.style.top = t.clientY + 'px';
+  };
+
+  const handleTouchEnd = () => {
+    clearTimeout(timerRef.current);
+    if (!dragRef.current?.active) { dragRef.current = null; return; }
+    const from = dragRef.current.idx;
+    const to   = dragOverRef.current ?? from;
+    dragRef.current     = null;
+    dragOverRef.current = null;
+    setGhost(null);
+    setOverIdx(null);
+    if (to !== from) onReorder(reorder(items, from, to), from, to);
+  };
+
+  const handleTouchCancel = () => {
+    clearTimeout(timerRef.current);
+    dragRef.current = null; dragOverRef.current = null;
+    setGhost(null); setOverIdx(null);
+  };
+
+  const getDragHandleProps = idx => ({
+    onTouchStart:  e => handleTouchStart(idx, e),
+    onTouchMove:   handleTouchMove,
+    onTouchEnd:    handleTouchEnd,
+    onTouchCancel: handleTouchCancel,
+    style: { cursor: 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' },
+  });
+
+  const ghostEl = ghost ? (
+    <div id="drag-ghost" style={{
+      position: 'fixed', left: 16, right: 16, top: ghost.floatY,
+      transform: 'translateY(-50%)', background: '#283618', borderRadius: 12,
+      padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.3)', zIndex: 9999, pointerEvents: 'none',
+    }}>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="rgba(255,255,255,0.4)">
+        <rect y="0" width="16" height="2" rx="1"/>
+        <rect y="5" width="16" height="2" rx="1"/>
+        <rect y="10" width="16" height="2" rx="1"/>
+      </svg>
+      {ghost.color && <div style={{ width:10, height:10, borderRadius:'50%', background:ghost.color, flexShrink:0 }}/>}
+      <span style={{ fontSize:14, fontWeight:600, color:'#FFFFFF' }}>{ghost.label}</span>
+    </div>
+  ) : null;
+
+  return { listRef, getRowProps, getDragHandleProps, ghostEl, isDragging, isDropTarget };
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP
+// ─────────────────────────────────────────────────────────────────────────────
+'use client';
+import { useState, useEffect, useRef, useCallback } from "react";
+
 // ─── Module imports ────────────────────────────────────────────────────────────
-import { VIEWS, STEP_COLORS, DEFAULT_STEPS, STARTER_DDT_C, FLOUR_DB } from "./constants";
-import { uid, fmtTime, fmtDur, bkPct, timeStr, toDateTimeLocal, fromDateTimeLocal,
-         compressImage, makeRecipe, reorder } from "./utils";
-import { useDb } from "./hooks/useDb";
-import { useDrag } from "./hooks/useDrag";
-import { Card, Lbl, SecH, Inp, Stat, Badge, Stars, Ring, DragHandle } from "./components/ui";
 
 // ─── Audio helpers ─────────────────────────────────────────────────────────────
 function playAlarm() {
