@@ -278,26 +278,27 @@ function compressImage(file, maxPx = 1200, quality = 0.75) {
       };
       img.src = ev.target.result;
     };
-    reader.readAsDataURL(file)
-}
+    reader.readAsDataURL(file);
   });
+}
 
-// ── makeRecipe — inlines DEFAULT_STEPS and STEP_COLORS to avoid circular import ──
-const _STEP_COLORS = ['#3A7A58','#5E9E6A','#5C5C5C','#606c38','#8A8A8A','#283618','#787878','#4A6628','#A0A0A0','#7A8A48'];
-const _DEFAULT_STEPS = [
-  { id:'starter_peak', name:'Starter Peak',       duration:480 },
-  { id:'make_levain',  name:'Make Levain',        duration:20  },
-  { id:'autolyse',     name:'Autolyse',           duration:30  },
-  { id:'levain_mix',   name:'Levain + Mix',       duration:20  },
-  { id:'bulk',         name:'Bulk Ferment',       duration:240, sfCount:5 },
-  { id:'divide',       name:'Divide & Pre-shape', duration:30  },
-  { id:'shape',        name:'Pre-shape',          duration:15  },
-  { id:'proof',        name:'Shape',              duration:60  },
-  { id:'retard',       name:'Retard',             duration:720 },
-  { id:'bake',         name:'Bake',               duration:45  },
-];
+// ── makeRecipe — _STEP_COLORS/_DEFAULT_STEPS defined inside function to avoid TDZ ──
 
-function makeRecipe() { return ({
+function makeRecipe() {
+  const _STEP_COLORS = ['#3A7A58','#5E9E6A','#5C5C5C','#606c38','#8A8A8A','#283618','#787878','#4A6628','#A0A0A0','#7A8A48'];
+  const _DEFAULT_STEPS = [
+    { id:'starter_peak', name:'Starter Peak',       duration:480 },
+    { id:'make_levain',  name:'Make Levain',        duration:20  },
+    { id:'autolyse',     name:'Autolyse',           duration:30  },
+    { id:'levain_mix',   name:'Levain + Mix',       duration:20  },
+    { id:'bulk',         name:'Bulk Ferment',       duration:240, sfCount:5 },
+    { id:'divide',       name:'Divide & Pre-shape', duration:30  },
+    { id:'shape',        name:'Pre-shape',          duration:15  },
+    { id:'proof',        name:'Shape',              duration:60  },
+    { id:'retard',       name:'Retard',             duration:720 },
+    { id:'bake',         name:'Bake',               duration:45  },
+  ];
+  return ({
   id: uid(),
   name: 'New Recipe',
   loaves: '2', loafG: '900', ddt: '26',
