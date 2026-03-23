@@ -1362,13 +1362,34 @@ export default function App() {
                         const steps=(log.steps||[]).map((st,j)=>j===i?{...st,name:e.target.value}:st);
                         updateLog({steps});
                       }} style={{flex:1,fontSize:14,fontWeight:600,background:"transparent",border:"none",borderBottom:"1px solid #E0DED8",outline:"none",padding:"2px 0",color:"#283618",fontFamily:"inherit",minWidth:0}}/>
-                      {/* Duration input */}
-                      <input type="text" inputMode="numeric" value={s.durationMin||""} onChange={e=>{
-                        const v=parseInt(e.target.value)||0;
-                        const steps=(log.steps||[]).map((st,j)=>j===i?{...st,durationMin:v}:st);
-                        updateLog({steps});
-                      }} style={{width:42,fontSize:12,fontWeight:600,background:"#F8F8F6",border:"1px solid #E0DED8",borderRadius:6,padding:"3px 4px",textAlign:"center",color:"#283618",outline:"none"}}/>
-                      <span style={{fontSize:11,color:"#9E9E90",flexShrink:0}}>min</span>
+                      {/* Duration input with min/hr toggle */}
+                      {(()=>{
+                        const unit = s.durationUnit || 'min';
+                        const displayVal = unit === 'hr' ? +(s.durationMin / 60).toFixed(2) : s.durationMin;
+                        return <>
+                          <input type="text" inputMode="decimal" value={displayVal||''}
+                            onFocus={e=>e.target.select()}
+                            onChange={e=>{
+                              const raw=e.target.value.replace(/[^0-9.]/g,'');
+                              const mins=raw===''?0:unit==='hr'?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0));
+                              updateLog({steps:(log.steps||[]).map((st,j)=>j===i?{...st,durationMin:mins}:st)});
+                            }}
+                            onBlur={e=>{
+                              const v=parseFloat(e.target.value)||1;
+                              const mins=unit==='hr'?Math.round(v*60):Math.round(v);
+                              updateLog({steps:(log.steps||[]).map((st,j)=>j===i?{...st,durationMin:Math.max(1,mins)}:st)});
+                            }}
+                            style={{width:44,fontSize:12,fontWeight:600,background:'#F8F8F6',border:'1px solid #E0DED8',borderRadius:6,padding:'3px 4px',textAlign:'center',color:'#283618',outline:'none'}}/>
+                          <div style={{display:'flex',background:'#F2F2F0',borderRadius:6,border:'1px solid #E0DED8',overflow:'hidden',flexShrink:0}}>
+                            {['min','hr'].map(u=>(
+                              <button key={u} onClick={()=>updateLog({steps:(log.steps||[]).map((st,j)=>j===i?{...st,durationUnit:u}:st)})}
+                                style={{padding:'3px 5px',fontSize:10,fontWeight:600,background:unit===u?'#283618':'transparent',color:unit===u?'#FFFFFF':'#6E6E6E',border:'none',cursor:'pointer'}}>
+                                {u}
+                              </button>
+                            ))}
+                          </div>
+                        </>;
+                      })()}
                       {/* Delete */}
                       <button onClick={()=>{
                         const steps=(log.steps||[]).filter((_,j)=>j!==i);
@@ -1777,7 +1798,7 @@ export default function App() {
         </div>}
 
       </div>
-      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
       <input ref={scanFileRef} type="file" accept="image/*" onChange={e=>{
         const file=e.target.files[0]; if(!file) return; e.target.value="";
         const reader=new FileReader();
