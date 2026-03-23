@@ -897,11 +897,13 @@ export default function App() {
       } catch { return false; }
     };
 
-    fetch('/api/db-init')
-      .then(() => Promise.all([
+    // Run db-init in parallel with data fetches — it's idempotent and only
+    // needed on very first run. Don't block data loading on it.
+    fetch('/api/db-init').catch(() => {});
+    Promise.all([
         fetch('/api/recipes').then(r => r.json()),
         fetch('/api/logs').then(r => r.json()),
-      ]))
+      ])
       .then(([recipeData, logData]) => {
         const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
         const dbIds = new Set(dbRecipes.map(r => r.id));
