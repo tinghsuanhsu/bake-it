@@ -232,36 +232,36 @@ const FLOUR_DB = [
 // "cannot access before initialization" in the bundled output.
 
 // ── ID / formatting ────────────────────────────────────────────────────────────
-const uid     = () => Math.random().toString(36).slice(2, 9);
-const fmt2    = n  => String(n).padStart(2, '0');
-const bkPct   = (g, base) => base ? ((g / base) * 100).toFixed(1) : '—';
-const timeStr = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function fmt2(n) { return String(n).padStart(2, '0'); }
+function bkPct(g, base) { return base ? ((g / base) * 100).toFixed(1) : '—'; }
+function timeStr(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 
-const fmtTime = s => {
+function fmtTime(s) {
   if (s <= 0) return '0:00';
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   return h > 0 ? `${h}:${fmt2(m)}:${fmt2(sec)}` : `${m}:${fmt2(sec)}`;
-};
+}
 
-const fmtDur = min => {
+function fmtDur(min) {
   if (min < 60) return `${min}m`;
   const h = Math.floor(min / 60), m = min % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
-};
+}
 
 // ── datetime-local helpers ─────────────────────────────────────────────────────
-const toDateTimeLocal = ts => {
+function toDateTimeLocal(ts) {
   if (!ts) return '';
   const d = new Date(ts);
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-};
+}
 
-const fromDateTimeLocal = val => (val ? new Date(val).getTime() : null);
+function fromDateTimeLocal(val) { return val ? new Date(val).getTime() : null; }
 
 // ── Image compression ─────────────────────────────────────────────────────────
-const compressImage = (file, maxPx = 1200, quality = 0.75) =>
-  new Promise(resolve => {
+function compressImage(file, maxPx = 1200, quality = 0.75) {
+  return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = ev => {
       const img = new Image();
@@ -278,7 +278,8 @@ const compressImage = (file, maxPx = 1200, quality = 0.75) =>
       };
       img.src = ev.target.result;
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(file)
+}
   });
 
 // ── makeRecipe — inlines DEFAULT_STEPS and STEP_COLORS to avoid circular import ──
@@ -296,7 +297,7 @@ const _DEFAULT_STEPS = [
   { id:'bake',         name:'Bake',               duration:45  },
 ];
 
-const makeRecipe = () => ({
+function makeRecipe() { return ({
   id: uid(),
   name: 'New Recipe',
   loaves: '2', loafG: '900', ddt: '26',
@@ -313,15 +314,15 @@ const makeRecipe = () => ({
   stepUnit: Object.fromEntries(_DEFAULT_STEPS.map(s => [s.id, 'min'])),
   notes: '',
   tempUnit: 'C',
-});
+}) }
 
 // ── Reorder helper (immutable) ────────────────────────────────────────────────
-const reorder = (arr, from, to) => {
+function reorder(arr, from, to) {
   const next = [...arr];
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);
   return next;
-};
+}
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -329,7 +330,7 @@ const reorder = (arr, from, to) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── Shared UI primitives ────────────────────────────────────────────────────
 
-const Card = ({ children, style = {}, ...rest }) => (
+function Card({ children, style = {}, ...rest }) { return (
   <div style={{
     background: '#FFFFFF', borderRadius: 20, border: '1px solid #E0DED8',
     padding: 20, marginBottom: 12, boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
@@ -337,9 +338,9 @@ const Card = ({ children, style = {}, ...rest }) => (
   }} {...rest}>
     {children}
   </div>
-);
+); }
 
-const Lbl = ({ children, style = {} }) => (
+function Lbl({ children, style = {} }) { return (
   <div style={{
     fontSize: 11, fontWeight: 600, color: '#606c38',
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6,
@@ -347,15 +348,15 @@ const Lbl = ({ children, style = {} }) => (
   }}>
     {children}
   </div>
-);
+); }
 
-const SecH = ({ children, style = {} }) => (
+function SecH({ children, style = {} }) { return (
   <div style={{ fontSize: 13, fontWeight: 600, color: '#606c38', margin: '20px 0 8px', paddingLeft: 4, ...style }}>
     {children}
   </div>
-);
+); }
 
-const Inp = ({ value, onChange, type = 'text', placeholder = '', style = {} }) => (
+function Inp({ value, onChange, type = 'text', placeholder = '', style = {} }) { return (
   <input
     value={value} onChange={onChange} type={type} placeholder={placeholder}
     style={{
@@ -365,18 +366,18 @@ const Inp = ({ value, onChange, type = 'text', placeholder = '', style = {} }) =
       ...style,
     }}
   />
-);
+); }
 
-const Badge = ({ children, color = '#5C5C5C' }) => (
+function Badge({ children, color = '#5C5C5C' }) { return (
   <span style={{
     background: color + '18', color, fontSize: 11, fontWeight: 600,
     borderRadius: 8, padding: '3px 9px', display: 'inline-block',
   }}>
     {children}
   </span>
-);
+); }
 
-const Stat = ({ label, value, highlight, color }) => (
+function Stat({ label, value, highlight, color }) { return (
   <div>
     <div style={{ fontSize: 11, fontWeight: 600, color: '#606c38', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
       {label}
@@ -385,7 +386,7 @@ const Stat = ({ label, value, highlight, color }) => (
       {value}
     </div>
   </div>
-);
+); }
 
 function Stars({ count, max = 5, color = '#5C5C5C', size = 14 }) {
   return (
@@ -417,7 +418,7 @@ function Ring({ progress, size = 130, stroke = 11, color = '#5C5C5C', children }
 }
 
 // ── DragHandle icon ────────────────────────────────────────────────────────────
-const DragHandle = ({ color = '#BBBBAA', ...props }) => (
+function DragHandle({ color = '#BBBBAA', ...props }) { return (
   <div style={{ padding: '6px 4px', color, flexShrink: 0, ...props.style }} {...props}>
     <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor">
       <rect y="0" width="16" height="2" rx="1"/>
@@ -425,7 +426,7 @@ const DragHandle = ({ color = '#BBBBAA', ...props }) => (
       <rect y="10" width="16" height="2" rx="1"/>
     </svg>
   </div>
-);
+); }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
