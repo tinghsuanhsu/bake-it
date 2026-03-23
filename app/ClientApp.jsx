@@ -452,8 +452,11 @@ function useDb() {
   }, []);
 
   const deleteRecipeDB = useCallback(async id => {
-    try { await fetch(`/api/recipes/${id}`, { method: 'DELETE' }); }
-    catch (e) { console.warn('deleteRecipe failed:', e); }
+    const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Delete failed (${res.status})`);
+    }
   }, []);
 
   const recipeSaveTimers = useRef({});
@@ -474,8 +477,11 @@ function useDb() {
   }, []);
 
   const deleteLogDB = useCallback(async id => {
-    try { await fetch(`/api/logs/${id}`, { method: 'DELETE' }); }
-    catch (e) { console.warn('deleteLog failed:', e); }
+    const res = await fetch(`/api/logs/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Delete failed (${res.status})`);
+    }
   }, []);
 
   const logSaveTimers = useRef({});
@@ -1412,7 +1418,12 @@ export default function App() {
               </div>
               <div style={{padding:"10px 18px",background:"#FFFFFF",borderTop:"0.5px solid #E0DED8",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:12,color:"#606c38",flex:1,marginRight:12}}>{r.notes||"No notes"}</span>
-                <button onClick={()=>{setRecipes(rs=>rs.filter(x=>x.id!==r.id));deleteRecipeDB(r.id);}} style={{fontSize:12,color:"#9E3A3A",background:"none",fontWeight:600,flexShrink:0}}>Delete</button>
+                <button onClick={async()=>{
+                  try {
+                    await deleteRecipeDB(r.id);
+                    setRecipes(rs=>rs.filter(x=>x.id!==r.id));
+                  } catch(e) { alert('Could not delete — please try again.'); }
+                }} style={{fontSize:12,color:"#9E3A3A",background:"none",fontWeight:600,flexShrink:0}}>Delete</button>
               </div>
             </Card>
             </div>;
