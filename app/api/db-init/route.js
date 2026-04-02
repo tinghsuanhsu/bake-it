@@ -15,7 +15,7 @@ function assertInitAccess(req) {
   }
 }
 
-export async function GET(req) {
+export async function POST(req) {
   assertInitAccess(req);
   const sql = getDb();
   try {

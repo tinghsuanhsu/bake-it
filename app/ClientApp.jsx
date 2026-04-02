@@ -819,7 +819,9 @@ export default function App() {
   const [flourFilter,   setFlourFilter]  = useState('All');
   const [recipeSearch,  setRecipeSearch] = useState('');
   const [expandedFlour, setExpandedFlour] = useState(null);
-  const [userFlours,    setUserFlours]   = useState([]);
+  const [userFlours,    setUserFlours]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem('bakeIt_userFlours') || '[]'); } catch { return []; }
+  });
   const [showAddFlour,  setShowAddFlour] = useState(false);
   const [newFlour, setNewFlour] = useState({
     name:'', brand:'', type:'Custom', protein:'', where:'', description:'', tips:'',
@@ -904,7 +906,7 @@ export default function App() {
       } catch { return false; }
     };
 
-    fetch('/api/db-init')
+    fetch('/api/db-init', { method: 'POST' })
       .then(() => Promise.all([
         fetch('/api/recipes').then(r => r.json()),
         fetch('/api/logs').then(r => r.json()),
@@ -1017,6 +1019,32 @@ export default function App() {
     return () => clearInterval(id);
   }, [bakeStarted]);
 
+  // ── Service Worker timer helpers ────────────────────────────────────────────
+  // Schedule a notification via the SW so it fires even when the tab/app is closed
+  const swRef = useRef(null);
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => { swRef.current = reg; });
+    }
+  }, []);
+
+  const scheduleSwTimer = useCallback((stepId, stepName, delayMs) => {
+    const sw = swRef.current?.active || navigator.serviceWorker?.controller;
+    if (sw) {
+      sw.postMessage({ type: 'SCHEDULE_TIMER', stepId, stepName, delayMs, tag: `step-${stepId}` });
+    }
+  }, []);
+
+  const cancelSwTimer = useCallback((stepId) => {
+    const sw = swRef.current?.active || navigator.serviceWorker?.controller;
+    if (sw) sw.postMessage({ type: 'CANCEL_TIMER', stepId });
+  }, []);
+
+  const cancelAllSwTimers = useCallback(() => {
+    const sw = swRef.current?.active || navigator.serviceWorker?.controller;
+    if (sw) sw.postMessage({ type: 'CANCEL_ALL_TIMERS' });
+  }, []);
+
   // ── Notification permission ──────────────────────────────────────────────────
   useEffect(() => {
     if (bakeStarted && typeof Notification !== 'undefined' && Notification.permission === 'default') {
@@ -1024,13 +1052,29 @@ export default function App() {
     }
   }, [bakeStarted]);
 
-  // ── Step alarm ───────────────────────────────────────────────────────────────
+  // ── Schedule SW timer when active step changes ──────────────────────────────
+  useEffect(() => {
+    if (!bakeStarted || activeStep == null || !bakeRecipe) return;
+    const s = bakeRecipe.steps[activeStep];
+    if (!s) return;
+    const rem = remaining(activeStep);
+    if (rem > 0) {
+      scheduleSwTimer(s.id || `step-${activeStep}`, s.name, rem * 1000);
+    }
+    return () => {
+      cancelSwTimer(s.id || `step-${activeStep}`);
+    };
+  }, [activeStep, bakeStarted]); // eslint-disable-line
+
+  // ── Step alarm (in-app sound + fallback notification) ───────────────────────
   useEffect(() => {
     if (!bakeStarted || activeStep == null || !bakeRecipe) return;
     if (alarmFiredRef.current[activeStep]) return;
     if (remaining(activeStep) === 0) {
       alarmFiredRef.current[activeStep] = true;
       playAlarm();
+      // SW notification handles the persistent alert; this is a fallback for when
+      // the app is in the foreground and the SW timer already fired
       fireNotification('Step complete', `${bakeRecipe.steps[activeStep]?.name || 'Step'} is done.`);
     }
   }, [tick, activeStep, bakeStarted]); // eslint-disable-line
@@ -1039,6 +1083,11 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('bakeIt_view', view); } catch {}
   }, [view]);
+
+  // ── Persist custom flours ───────────────────────────────────────────────────
+  useEffect(() => {
+    try { localStorage.setItem('bakeIt_userFlours', JSON.stringify(userFlours)); } catch {}
+  }, [userFlours]);
 
   // ── Scroll to top on navigation ──────────────────────────────────────────────
   useEffect(() => {
@@ -1096,6 +1145,57 @@ export default function App() {
     setStepNotes({});
     setStepPhotos({});
     setSfDone({});
+    setFoldNotes({});
+    setFoldPhotos({});
+    setSteamDone(false);
+    setSessionNotes('');
+    setView(VIEWS.BAKE);
+  };
+
+  // Resume a past/manual log as an active bake session
+  const resumeBake = (log) => {
+    if (bakeStarted) {
+      if (!confirm('You already have an active bake. Starting this one will abandon it. Continue?')) return;
+      cancelAllSwTimers();
+    }
+    // We need a recipe in the recipes list. If the log has a recipeId and it exists, use that.
+    // Otherwise create a temporary recipe from the log data.
+    let recipe = log.recipeId ? recipes.find(r => r.id === log.recipeId) : null;
+    if (!recipe) {
+      // Build a temporary recipe from the log's ingredients/steps
+      recipe = {
+        ...makeRecipe(),
+        id: log.recipeId || ('resumed-' + log.id),
+        name: log.recipeName || 'Resumed Bake',
+        ingredients: log.ingredients || [],
+        steps: log.steps || DEFAULT_STEPS.map((s, i) => ({ sfCount: 0, ...s, durationMin: s.duration, color: STEP_COLORS[i] })),
+        autolyseEnabled: log.autolyseEnabled !== false,
+        loaves: log.loaves || '1',
+        loafG: log.loafG || '900',
+      };
+      // Add it to the recipe list temporarily so bakeRecipe resolves
+      setRecipes(rs => [...rs, recipe]);
+      saveRecipe(recipe);
+    }
+
+    alarmFiredRef.current = {};
+    setSelectedId(recipe.id);
+    setBakeStarted(true);
+    setBST(log.startTime || Date.now());
+    setActiveStep(0);
+    setSST({ 0: log.startTime || Date.now() });
+    setStepNotes(log.stepNotes || {});
+    setStepPhotos(log.stepPhotos || {});
+    setSessionNotes(log.sessionNotes || '');
+    setFoldNotes(log.foldNotes || {});
+    setFoldPhotos(log.foldPhotos || {});
+    setSteamDone(false);
+    setSfDone({});
+
+    // Remove the log from saved logs since it's now active
+    setSavedLogs(prev => prev.filter(l => l.id !== log.id));
+    deleteLogDB(log.id).catch(() => {});
+    setViewingLog(null);
     setView(VIEWS.BAKE);
   };
 
@@ -1115,6 +1215,7 @@ export default function App() {
 
   const finishBake = () => {
     if (!bakeRecipe) return;
+    cancelAllSwTimers();
     const log = {
       id:             uid(),
       recipeName:     bakeRecipe.name,
@@ -1617,20 +1718,19 @@ export default function App() {
                     </div>}
                     {!disabled && (s.id==="retard" ? (
                       <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        {unit!=="overnight" && <>
-                          <input type="text" inputMode="decimal" value={displayVal}
+                          <input type="text" inputMode="decimal" value={unit==="overnight"?+(s.durationMin/60).toFixed(1):displayVal}
                             onFocus={e=>e.target.select()}
-                            onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:unit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
-                            onBlur={e=>{const v=parseFloat(e.target.value)||1;const m=unit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
+                            onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,"");const effUnit=unit==="overnight"?"hr":unit;updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:raw===""?0:effUnit==="hr"?Math.round(parseFloat(raw||0)*60):Math.round(parseFloat(raw||0))}:st)}));}}
+                            onBlur={e=>{const v=parseFloat(e.target.value)||1;const effUnit=unit==="overnight"?"hr":unit;const m=effUnit==="hr"?Math.round(v*60):Math.round(v);updE(r=>({...r,steps:r.steps.map((st,j)=>j===i?{...st,durationMin:Math.max(1,m)}:st)}));}}
                             style={{width:44,background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:8,padding:"5px 4px",fontSize:13,fontWeight:600,textAlign:"center",color:"#283618"}}/>
-                          <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
+                          {unit!=="overnight" && <div style={{display:"flex",background:"#F2F2F0",borderRadius:8,border:"1px solid #E0DED8",overflow:"hidden"}}>
                             {["min","hr"].map(u=><button key={u} onClick={()=>updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:u}}))}
                               style={{padding:"4px 6px",fontSize:11,fontWeight:600,background:unit===u?"#606c38":"transparent",color:unit===u?"#FFFFFF":"#6E6E6E",transition:"all 0.15s"}}>{u}</button>)}
-                          </div>
-                        </>}
+                          </div>}
+                          {unit==="overnight" && <span style={{fontSize:11,fontWeight:600,color:"#6E6E6E"}}>hr</span>}
                         <button onClick={()=>{
                           const next=unit==="overnight"?"hr":"overnight";
-                          updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"?600:st.durationMin}:st)}));
+                          updE(r=>({...r,stepUnit:{...r.stepUnit,[s.id]:next},steps:r.steps.map((st,j)=>j===i?{...st,durationMin:next==="overnight"&&st.durationMin<120?600:st.durationMin}:st)}));
                         }} style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:20,border:"1px solid #E0DED8",background:unit==="overnight"?"#283618":"transparent",color:unit==="overnight"?"#F8F8F6":"#6E6E6E",transition:"all 0.2s"}}>
                           {unit==="overnight"?"Overnight: On":"Overnight"}
                         </button>
@@ -1927,6 +2027,21 @@ export default function App() {
                   </div>
                 )}
               </Card>
+              {/* Resume as active bake — show for manual/past bakes that haven't been baked yet */}
+              {log.isManual && !bakeStarted && (
+                <button onClick={()=>resumeBake(log)}
+                  style={{width:"100%",padding:"14px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:15,fontWeight:700,marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8,border:"none",cursor:"pointer",letterSpacing:"-0.01em"}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/></svg>
+                  Resume as Active Bake
+                </button>
+              )}
+              {log.isManual && bakeStarted && (
+                <button onClick={()=>resumeBake(log)}
+                  style={{width:"100%",padding:"14px",borderRadius:14,background:"#EFEFED",color:"#283618",fontSize:14,fontWeight:600,marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8,border:"1px solid #E0DED8",cursor:"pointer"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/></svg>
+                  Resume as Active Bake (replaces current)
+                </button>
+              )}
               {log.isManual && (
                 <Card style={{marginBottom:4}}>
                   <Lbl>Link to recipe (optional)</Lbl>
@@ -2288,6 +2403,7 @@ export default function App() {
                     {/* Delete button — extends left under the card so no square corners show */}
                     <div style={{position:"absolute",top:0,right:0,bottom:0,left:"-16px",background:"#E53E3E",display:"flex",alignItems:"center",justifyContent:"flex-end",borderRadius:"0 16px 16px 0"}}>
                       <button onClick={async()=>{
+                          if (!confirm('Delete this bake log? This cannot be undone.')) { setSwipedLogId(null); return; }
                           try {
                             await deleteLogDB(log.id);
                             setSavedLogs(prev=>prev.filter(l=>l.id!==log.id));
