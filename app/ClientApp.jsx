@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── App-wide constants ───────────────────────────────────────────────────────
 
-const VIEWS = { HOME:"home", RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients" };
+const VIEWS = { HOME:"home", RECIPES:"recipes", BAKE:"bake", LOG:"log", INGREDIENTS:"ingredients", PLAN:"plan" };
 
 const STEP_COLORS = ["#3A7A58","#5E9E6A","#5C5C5C","#606c38","#8A8A8A","#283618","#787878","#4A6628","#A0A0A0","#7A8A48"];
 
@@ -827,6 +827,14 @@ export default function App() {
     name:'', brand:'', type:'Custom', protein:'', where:'', description:'', tips:'',
   });
 
+  // ── Planning state ──────────────────────────────────────────────────────────
+  const [planRecipeId,  setPlanRecipeId]  = useState(null);
+  const [planFinishTime, setPlanFinishTime] = useState('');
+  const [planTab,       setPlanTab]       = useState('schedule'); // 'schedule' | 'flours'
+
+  // ── Log sub-tab state ───────────────────────────────────────────────────────
+  const [logTab, setLogTab] = useState('bakes'); // 'bakes' | 'photos' | 'trends'
+
   // ── DB loading state ────────────────────────────────────────────────────────
   const [dbLoading, setDbLoading] = useState(true);
   const [dbError,   setDbError]   = useState(null);
@@ -1331,9 +1339,9 @@ export default function App() {
   // ─────────────────────────────────────────────────────────────────────────────
   const TABS = [
     {v:VIEWS.RECIPES,    l:"Recipes", icon:<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/><line x1="10" y1="9" x2="9" y2="9"/></svg>},
+    {v:VIEWS.PLAN,       l:"Plan",    icon:<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>},
     {v:VIEWS.BAKE,       l:"Bake",    icon:<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2c-2 2.5-3 5-2 7.5 0 0-1.5-.5-1-2.5C7 9 5 11.5 5 14a7 7 0 0 0 14 0c0-4-4-8-7-12z"/><path d="M12 22c0 0-2-2-2-4s2-3 2-3 2 1 2 3-2 4-2 4z" strokeWidth="1.5" strokeOpacity="0.6"/></svg>},
     {v:VIEWS.LOG,        l:"Log",     icon:<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>},
-    {v:VIEWS.INGREDIENTS,l:"Flours",  icon:<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"/><rect x="5" y="4" width="14" height="4" rx="1.5"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg>},
   ];
 
   return (
@@ -1971,6 +1979,289 @@ export default function App() {
         </div>}
 
         {/* ══════════════════════════════
+            PLAN — Reverse Scheduling
+        ══════════════════════════════ */}
+        {view===VIEWS.PLAN && <div className="su">
+          <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em",marginBottom:14}}>Plan</div>
+
+          {/* Sub-tab toggle */}
+          <div style={{display:"flex",gap:0,marginBottom:20,background:"#EFEFED",borderRadius:12,padding:3,border:"1px solid #E0DED8"}}>
+            {[{k:"schedule",l:"Schedule"},{k:"flours",l:"Flours"}].map(t=>(
+              <button key={t.k} onClick={()=>setPlanTab(t.k)}
+                style={{flex:1,padding:"9px 0",borderRadius:10,fontSize:13,fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s",
+                  background:planTab===t.k?"#283618":"transparent",
+                  color:planTab===t.k?"#FFFFFF":"#6E6E6E",
+                  boxShadow:planTab===t.k?"0 1px 4px rgba(0,0,0,0.15)":"none"}}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
+          {/* ════════ SCHEDULE SUB-TAB ════════ */}
+          {planTab==="schedule" && <>
+          <div style={{fontSize:14,color:"#606c38",marginBottom:20}}>When do you need to start? Pick a recipe and a finish time.</div>
+
+          {/* Recipe picker */}
+          <Card>
+            <Lbl>Recipe</Lbl>
+            <select value={planRecipeId||""} onChange={e=>setPlanRecipeId(e.target.value||null)}
+              style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"8px 2px",fontSize:15,fontWeight:600,color:"#283618",outline:"none",fontFamily:"inherit",cursor:"pointer",appearance:"auto"}}>
+              <option value="">Select a recipe…</option>
+              {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </Card>
+
+          {/* Finish time picker */}
+          <Card>
+            <Lbl>I want bread ready by</Lbl>
+            <input type="datetime-local" value={planFinishTime}
+              onChange={e=>setPlanFinishTime(e.target.value)}
+              style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"8px 2px",fontSize:15,fontWeight:600,color:"#283618",outline:"none",fontFamily:"inherit"}}/>
+          </Card>
+
+          {/* Results */}
+          {(()=>{
+            const planR = planRecipeId ? recipes.find(r=>r.id===planRecipeId) : null;
+            if (!planR || !planFinishTime) return <Card style={{textAlign:"center",padding:"30px 20px"}}>
+              <div style={{fontSize:40,marginBottom:8}}>⏱</div>
+              <p style={{color:"#6E6E6E",fontSize:14}}>Select a recipe and finish time to calculate your schedule.</p>
+            </Card>;
+
+            const finishTs = new Date(planFinishTime).getTime();
+            if (isNaN(finishTs)) return null;
+
+            const activeSteps = planR.autolyseEnabled ? planR.steps : planR.steps.filter(s=>s.id!=="autolyse");
+            const totalMin = activeSteps.reduce((a,s)=>a+s.durationMin,0);
+            const startTs = finishTs - totalMin * 60000;
+            const startDate = new Date(startTs);
+            const now = Date.now();
+            const isInPast = startTs < now;
+            const untilStart = startTs - now;
+            const hoursUntil = Math.floor(Math.abs(untilStart) / 3600000);
+            const minsUntil = Math.floor((Math.abs(untilStart) % 3600000) / 60000);
+
+            // Build step schedule working backwards from finish
+            let cursor = finishTs;
+            const schedule = [];
+            for (let i = activeSteps.length - 1; i >= 0; i--) {
+              const s = activeSteps[i];
+              const stepStart = cursor - s.durationMin * 60000;
+              schedule.unshift({ ...s, startTs: stepStart, endTs: cursor });
+              cursor = stepStart;
+            }
+
+            // Levain build (goes before the first step)
+            const levainDurMin = parseFloat(planR.levain?.duration || 0) * 60;
+            const levainStart = levainDurMin > 0 ? new Date(startTs - levainDurMin * 60000) : null;
+
+            const fmtDT = (ts) => {
+              const d = new Date(ts);
+              const today = new Date();
+              const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+              const isToday = d.toDateString()===today.toDateString();
+              const isTmrw  = d.toDateString()===tomorrow.toDateString();
+              const prefix = isToday?"Today":isTmrw?"Tomorrow":d.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+              return `${prefix} ${d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`;
+            };
+
+            return <>
+              {/* Summary card */}
+              <Card style={{background:"#283618",border:"none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Start baking</div>
+                    <div style={{fontSize:24,fontWeight:700,color:"#FFFFFF",letterSpacing:"-0.02em"}}>{fmtDT(startTs)}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Total time</div>
+                    <div style={{fontSize:20,fontWeight:700,color:"#FFFFFF"}}>{fmtDur(totalMin)}</div>
+                  </div>
+                </div>
+                {isInPast
+                  ? <div style={{background:"rgba(158,58,58,0.3)",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#FF9E9E",fontWeight:600}}>
+                      You needed to start {hoursUntil}h {minsUntil}m ago — adjust your finish time.
+                    </div>
+                  : <div style={{background:"rgba(96,108,56,0.3)",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#8BC44A",fontWeight:600}}>
+                      Start in {hoursUntil}h {minsUntil}m
+                    </div>
+                }
+              </Card>
+
+              {/* Levain build */}
+              {levainStart && <Card>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:"#E8A020",flexShrink:0}}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14,fontWeight:600}}>Build Levain</div>
+                    <div style={{fontSize:12,color:"#606c38"}}>{planR.levain?.flour}g flour · {planR.levain?.water}g water · {planR.levain?.starter}g starter</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"#283618"}}>{fmtDT(levainStart.getTime())}</div>
+                    <div style={{fontSize:11,color:"#606c38"}}>{planR.levain?.duration}hr</div>
+                  </div>
+                </div>
+              </Card>}
+
+              {/* Step-by-step schedule */}
+              <SecH>Step Schedule</SecH>
+              <Card style={{padding:0,overflow:"hidden"}}>
+                {schedule.map((s,i)=>{
+                  const startD = new Date(s.startTs);
+                  const endD   = new Date(s.endTs);
+                  const sameDay = startD.toDateString() === endD.toDateString();
+                  return <div key={s.id||i} style={{borderBottom:i<schedule.length-1?"0.5px solid #E0DED8":"none",padding:"13px 18px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:s.color||"#606c38",flexShrink:0}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:600}}>{s.name}</div>
+                      <div style={{fontSize:12,color:"#606c38"}}>{fmtDur(s.durationMin)}{s.sfCount>0?` · ${s.sfCount} S&F`:""}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"#283618"}}>{fmtDT(s.startTs)}</div>
+                      {!sameDay && <div style={{fontSize:11,color:"#606c38"}}>→ {fmtDT(s.endTs)}</div>}
+                    </div>
+                  </div>;
+                })}
+              </Card>
+
+              {/* Start bake button */}
+              {!isInPast && <button onClick={()=>{if(planR) startBake(planR);}}
+                style={{width:"100%",padding:"16px",borderRadius:14,background:"#283618",color:"#F8F8F6",fontSize:16,fontWeight:700,marginTop:16,border:"none",cursor:"pointer",letterSpacing:"-0.01em"}}>
+                Start This Bake Now →
+              </button>}
+            </>;
+          })()}
+          </>}
+
+          {/* ════════ FLOURS SUB-TAB ════════ */}
+          {planTab==="flours" && <>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:2}}>
+            <div style={{fontSize:20,fontWeight:700,letterSpacing:"-0.02em"}}>Flour Database</div>
+            <button onClick={()=>setShowAddFlour(v=>!v)} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>+ Add</button>
+          </div>
+          <div style={{fontSize:14,color:"#606c38",marginBottom:18}}>Australian flour database · {allFlours.length} flours{userFlours.length>0?` · ${userFlours.length} custom`:""}</div>
+
+          {/* Add flour form */}
+          {showAddFlour && <Card style={{marginBottom:16}}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>Add custom flour</div>
+            {[
+              {label:"Name",key:"name",placeholder:"e.g. Heritage White"},
+              {label:"Brand",key:"brand",placeholder:"e.g. Local Mill"},
+              {label:"Type",key:"type",placeholder:"e.g. White Bread, Wholemeal…"},
+              {label:"Protein (g per 100g)",key:"protein",placeholder:"e.g. 12.5",type:"number"},
+              {label:"Where to buy",key:"where",placeholder:"e.g. Local health food store"},
+              {label:"Description",key:"description",placeholder:"Flavour, behaviour, best uses…"},
+              {label:"Baking tips",key:"tips",placeholder:"Hydration, fermentation notes…"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:12}}>
+                <Lbl>{f.label}</Lbl>
+                <input type={f.type||"text"} value={newFlour[f.key]} placeholder={f.placeholder}
+                  onChange={e=>setNewFlour(p=>({...p,[f.key]:e.target.value}))}
+                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"5px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit"}}/>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:10,marginTop:6}}>
+              <button onClick={()=>{
+                if(!newFlour.name.trim()) return;
+                const entry = {
+                  id:"u"+uid(), ...newFlour,
+                  protein: parseFloat(newFlour.protein)||0,
+                  energy:0,fat:0,carbs:0,fibre:0,sodium:0,
+                  sizes:["custom"], sourdoughRating:0, colour:"#E0DED8",
+                  isCustom:true,
+                };
+                setUserFlours(p=>[...p,entry]);
+                setNewFlour({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
+                setShowAddFlour(false);
+              }} style={{flex:1,padding:"11px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:600}}>Save Flour</button>
+              <button onClick={()=>setShowAddFlour(false)} style={{padding:"11px 16px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:14,fontWeight:600}}>Cancel</button>
+            </div>
+          </Card>}
+
+          {/* Search */}
+          <input value={flourSearch} onChange={e=>setFlourSearch(e.target.value)} placeholder="Search flour or brand…"
+            style={{width:"100%",background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:14,padding:"12px 16px",fontSize:15,color:"#283618",outline:"none",boxShadow:"0 1px 4px rgba(0,0,0,0.4)",marginBottom:12}}/>
+
+          {/* Type filters */}
+          <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4,marginBottom:20,scrollbarWidth:"none"}}>
+            {flourTypes.map(t=>(
+              <button key={t} onClick={()=>setFlourFilter(t)}
+                style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0,background:flourFilter===t?"#283618":"#FFFFFF",color:flourFilter===t?"#F8F8F6":"#606c38",border:`1px solid ${flourFilter===t?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Flour cards */}
+          {filteredFlours.map(f=>{
+            const isOpen=expandedFlour===f.id;
+            const pctOfMax=((f.protein-8)/6)*100;
+            return <Card key={f.id} style={{padding:0,overflow:"hidden"}}>
+
+              <div onClick={()=>setExpandedFlour(isOpen?null:f.id)} style={{padding:"16px 18px",cursor:"pointer",userSelect:"none"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{f.brand}</div>
+                    <div style={{fontSize:16,fontWeight:700,letterSpacing:"-0.01em",marginBottom:8}}>{f.name}</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      <Badge color="#606c38">{f.type}</Badge>
+                      <Badge color="#606c38">{f.sizes.join(", ")}</Badge>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"center",flexShrink:0,minWidth:56}}>
+                    <div style={{fontSize:24,fontWeight:900,color:"#283618",letterSpacing:"-0.03em",lineHeight:1}}>{f.protein}<span style={{fontSize:12,fontWeight:600,color:"#606c38"}}>g</span></div>
+                    <div style={{fontSize:9,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>protein</div>
+                    <div style={{width:48,height:5,background:"#E0DED8",borderRadius:4,margin:"0 auto",overflow:"hidden"}}>
+                      <div style={{height:"100%",background:"#5C5C5C",borderRadius:4,width:`${pctOfMax}%`}}/>
+                    </div>
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:12,color:"#606c38",flex:1,marginRight:8}}>{f.where}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:10,color:"#606c38",fontWeight:600}}>Sourdough</span>
+                    <Stars count={f.sourdoughRating} size={12}/>
+                    <span style={{fontSize:11,color:"#E0DED8",marginLeft:4}}>{isOpen?"▲":"▼"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {isOpen && <div style={{borderTop:"0.5px solid #E0DED8",padding:"16px 18px 20px",background:"#E0DED8"}}>
+                <p style={{fontSize:14,color:"#606c38",lineHeight:1.7,marginBottom:16}}>{f.description}</p>
+                <Lbl>Nutrition per 100g</Lbl>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+                  {[
+                    {l:"Energy",v:`${f.energy}kJ`},
+                    {l:"Protein",v:`${f.protein}g`,hi:true},
+                    {l:"Fat",v:`${f.fat}g`},
+                    {l:"Carbs",v:`${f.carbs}g`},
+                    {l:"Fibre",v:`${f.fibre}g`},
+                  ].map(n=><div key={n.l} style={{background:"#FFFFFF",borderRadius:12,padding:"10px 6px",textAlign:"center",border:`1px solid ${n.hi?"#606c3844":"#E0DED8"}`}}>
+                    <div style={{fontSize:9,fontWeight:600,color:n.hi?"#5C5C5C":"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>{n.l}</div>
+                    <div style={{fontSize:14,fontWeight:700,color:n.hi?"#5C5C5C":"#FFFFFF"}}>{n.v}</div>
+                  </div>)}
+                </div>
+                <Lbl>Protein strength (8–14g range)</Lbl>
+                <div style={{height:10,background:"#283618",borderRadius:10,overflow:"hidden",marginBottom:6}}>
+                  <div style={{height:"100%",background:"linear-gradient(90deg,#5C5C5C,#5C5C5C)",width:`${pctOfMax}%`,borderRadius:10}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#E0DED8",fontWeight:600,marginBottom:16}}>
+                  <span>8g (low)</span><span>11g (supermarket)</span><span>14g (pro)</span>
+                </div>
+                {f.tips && <><Lbl>Baking tips</Lbl>
+                <div style={{background:"#FFFFFF",borderRadius:12,padding:"12px 14px",border:"1px solid #E0DED8"}}>
+                  <p style={{fontSize:13,color:"#606c38",lineHeight:1.65}}>{f.tips}</p>
+                </div></>}
+                {!f.isCustom&&<div style={{fontSize:11,color:"#E0DED8",marginTop:12}}>Sodium: {f.sodium}mg · {f.where}</div>}
+                {f.isCustom&&<button onClick={e=>{e.stopPropagation();setUserFlours(p=>p.filter(x=>x.id!==f.id));setExpandedFlour(null);}}
+                  style={{marginTop:14,padding:"8px 14px",borderRadius:10,background:"#FFF0F0",color:"#9E3A3A",fontSize:12,fontWeight:600}}>Delete</button>}
+              </div>}
+            </Card>;
+          })}
+          {filteredFlours.length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No flours match your search.</p></Card>}
+          </>}
+        </div>}
+
+        {/* ══════════════════════════════
             LOG
         ══════════════════════════════ */}
         {view===VIEWS.LOG && <div className="su">
@@ -2310,7 +2601,7 @@ export default function App() {
             {[
               {label:"Recipes",value:recipes.length,action:()=>setView(VIEWS.RECIPES)},
               {label:"Bakes",value:savedLogs.length,action:null},
-              {label:"Flours",value:allFlours.length,action:()=>setView(VIEWS.INGREDIENTS)},
+              {label:"Flours",value:allFlours.length,action:()=>{setView(VIEWS.PLAN);setPlanTab("flours");}},
             ].map(({label,value,action})=>(
               <button key={label} onClick={action||undefined} style={{background:"#FFFFFF",borderRadius:14,padding:"14px 10px",border:"1px solid #E0DED8",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <div style={{fontSize:22,fontWeight:700,color:"#283618",letterSpacing:"-0.02em"}}>{value}</div>
@@ -2318,6 +2609,22 @@ export default function App() {
               </button>
             ))}
           </div>
+
+          {/* ── Sub-tab toggle ────────────── */}
+          <div style={{display:"flex",gap:0,marginBottom:20,background:"#EFEFED",borderRadius:12,padding:3,border:"1px solid #E0DED8"}}>
+            {[{k:"bakes",l:"Bakes"},{k:"photos",l:"Photos"},{k:"trends",l:"Trends"}].map(t=>(
+              <button key={t.k} onClick={()=>setLogTab(t.k)}
+                style={{flex:1,padding:"9px 0",borderRadius:10,fontSize:13,fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s",
+                  background:logTab===t.k?"#283618":"transparent",
+                  color:logTab===t.k?"#FFFFFF":"#6E6E6E",
+                  boxShadow:logTab===t.k?"0 1px 4px rgba(0,0,0,0.15)":"none"}}>
+                {t.l}
+              </button>
+            ))}
+          </div>
+
+          {/* ════════ BAKES SUB-TAB ════════ */}
+          {logTab==="bakes" && <>
 
           {/* ── Log list + active session ────────────── */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12}}>
@@ -2464,145 +2771,224 @@ export default function App() {
             <Card><p style={{fontSize:14,color:"#6E6E6E",textAlign:"center",padding:"8px 0"}}>Finish a bake to save it here.</p></Card>
           )}
           </>}
-        </div>}
-        {view===VIEWS.INGREDIENTS && <div className="su">
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:2}}>
-            <div style={{fontSize:26,fontWeight:700,letterSpacing:"-0.03em"}}>Ingredients</div>
-            <button onClick={()=>setShowAddFlour(v=>!v)} style={{padding:"9px 16px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:13,fontWeight:600}}>+ Add</button>
-          </div>
-          <div style={{fontSize:14,color:"#606c38",marginBottom:18}}>Australian flour database · {allFlours.length} flours{userFlours.length>0?` · ${userFlours.length} custom`:""}</div>
 
-          {/* Add flour form */}
-          {showAddFlour && <Card style={{marginBottom:16}}>
-            <div style={{fontSize:15,fontWeight:700,marginBottom:14}}>Add custom flour</div>
-            {[
-              {label:"Name",key:"name",placeholder:"e.g. Heritage White"},
-              {label:"Brand",key:"brand",placeholder:"e.g. Local Mill"},
-              {label:"Type",key:"type",placeholder:"e.g. White Bread, Wholemeal…"},
-              {label:"Protein (g per 100g)",key:"protein",placeholder:"e.g. 12.5",type:"number"},
-              {label:"Where to buy",key:"where",placeholder:"e.g. Local health food store"},
-              {label:"Description",key:"description",placeholder:"Flavour, behaviour, best uses…"},
-              {label:"Baking tips",key:"tips",placeholder:"Hydration, fermentation notes…"},
-            ].map(f=>(
-              <div key={f.key} style={{marginBottom:12}}>
-                <Lbl>{f.label}</Lbl>
-                <input type={f.type||"text"} value={newFlour[f.key]} placeholder={f.placeholder}
-                  onChange={e=>setNewFlour(p=>({...p,[f.key]:e.target.value}))}
-                  style={{width:"100%",background:"transparent",border:"none",borderBottom:"2px solid #E0DED8",padding:"5px 2px",fontSize:14,color:"#283618",outline:"none",fontFamily:"inherit"}}/>
-              </div>
-            ))}
-            <div style={{display:"flex",gap:10,marginTop:6}}>
-              <button onClick={()=>{
-                if(!newFlour.name.trim()) return;
-                const entry = {
-                  id:"u"+uid(), ...newFlour,
-                  protein: parseFloat(newFlour.protein)||0,
-                  energy:0,fat:0,carbs:0,fibre:0,sodium:0,
-                  sizes:["custom"], sourdoughRating:0, colour:"#E0DED8",
-                  isCustom:true,
-                };
-                setUserFlours(p=>[...p,entry]);
-                setNewFlour({name:"",brand:"",type:"Custom",protein:"",where:"",description:"",tips:""});
-                setShowAddFlour(false);
-              }} style={{flex:1,padding:"11px",borderRadius:12,background:"#283618",color:"#F8F8F6",fontSize:14,fontWeight:600}}>Save Flour</button>
-              <button onClick={()=>setShowAddFlour(false)} style={{padding:"11px 16px",borderRadius:12,background:"#EFEFED",color:"#606c38",fontSize:14,fontWeight:600}}>Cancel</button>
-            </div>
-          </Card>}
+          {/* ════════ PHOTOS SUB-TAB ════════ */}
+          {logTab==="photos" && (()=>{
+            // Collect all photos from all logs
+            const allPhotos = [];
+            savedLogs.filter(l=>l.id!=='__active_bake__').forEach(log=>{
+              // Review photos
+              (log.review?.photos||[]).forEach((src,i)=>{
+                allPhotos.push({src:typeof src==='string'?src:src.src, ts:log.endTime||log.startTime, recipeName:log.recipeName, logId:log.id, label:'Review', key:`${log.id}-rev-${i}`});
+              });
+              // Step photos
+              Object.entries(log.stepPhotos||{}).forEach(([stepIdx,photos])=>{
+                const stepName=(log.steps||[])[parseInt(stepIdx)]?.name||`Step ${parseInt(stepIdx)+1}`;
+                (Array.isArray(photos)?photos:[]).forEach((ph,i)=>{
+                  const src=typeof ph==='string'?ph:ph.src;
+                  if(src) allPhotos.push({src, ts:ph.ts||log.startTime, recipeName:log.recipeName, logId:log.id, label:stepName, key:`${log.id}-s${stepIdx}-${i}`});
+                });
+              });
+              // Fold photos
+              Object.entries(log.foldPhotos||{}).forEach(([foldN,src])=>{
+                if(src) allPhotos.push({src:typeof src==='string'?src:src.src, ts:log.startTime, recipeName:log.recipeName, logId:log.id, label:`Fold ${foldN}`, key:`${log.id}-fold-${foldN}`});
+              });
+            });
+            allPhotos.sort((a,b)=>(b.ts||0)-(a.ts||0));
 
-          {/* Search */}
-          <input value={flourSearch} onChange={e=>setFlourSearch(e.target.value)} placeholder="Search flour or brand…"
-            style={{width:"100%",background:"#FFFFFF",border:"1px solid #E0DED8",borderRadius:14,padding:"12px 16px",fontSize:15,color:"#283618",outline:"none",boxShadow:"0 1px 4px rgba(0,0,0,0.4)",marginBottom:12}}/>
-
-          {/* Type filters */}
-          <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:4,marginBottom:20,scrollbarWidth:"none"}}>
-            {flourTypes.map(t=>(
-              <button key={t} onClick={()=>setFlourFilter(t)}
-                style={{padding:"6px 13px",borderRadius:20,fontSize:12,fontWeight:600,whiteSpace:"nowrap",flexShrink:0,background:flourFilter===t?"#283618":"#FFFFFF",color:flourFilter===t?"#F8F8F6":"#606c38",border:`1px solid ${flourFilter===t?"#283618":"#E0DED8"}`,transition:"all 0.2s"}}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {/* Flour cards */}
-          {filteredFlours.map(f=>{
-            const isOpen=expandedFlour===f.id;
-            const pctOfMax=((f.protein-8)/6)*100; // 8–14g range
-            return <Card key={f.id} style={{padding:0,overflow:"hidden"}}>
-              {/* colour header bar */}
-              
-
-              <div onClick={()=>setExpandedFlour(isOpen?null:f.id)} style={{padding:"16px 18px",cursor:"pointer",userSelect:"none"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,marginBottom:10}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:11,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{f.brand}</div>
-                    <div style={{fontSize:16,fontWeight:700,letterSpacing:"-0.01em",marginBottom:8}}>{f.name}</div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                      <Badge color="#606c38">{f.type}</Badge>
-                      <Badge color="#606c38">{f.sizes.join(", ")}</Badge>
-                    </div>
-                  </div>
-                  {/* Protein callout */}
-                  <div style={{textAlign:"center",flexShrink:0,minWidth:56}}>
-                    <div style={{fontSize:24,fontWeight:900,color:"#283618",letterSpacing:"-0.03em",lineHeight:1}}>{f.protein}<span style={{fontSize:12,fontWeight:600,color:"#606c38"}}>g</span></div>
-                    <div style={{fontSize:9,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>protein</div>
-                    <div style={{width:48,height:5,background:"#E0DED8",borderRadius:4,margin:"0 auto",overflow:"hidden"}}>
-                      <div style={{height:"100%",background:"#5C5C5C",borderRadius:4,width:`${pctOfMax}%`}}/>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:12,color:"#606c38",flex:1,marginRight:8}}>{f.where}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:10,color:"#606c38",fontWeight:600}}>Sourdough</span>
-                    <Stars count={f.sourdoughRating} size={12}/>
-                    <span style={{fontSize:11,color:"#E0DED8",marginLeft:4}}>{isOpen?"▲":"▼"}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Expanded detail */}
-              {isOpen && <div style={{borderTop:"0.5px solid #E0DED8",padding:"16px 18px 20px",background:"#E0DED8"}}>
-                <p style={{fontSize:14,color:"#606c38",lineHeight:1.7,marginBottom:16}}>{f.description}</p>
-
-                {/* Nutrition panel */}
-                <Lbl>Nutrition per 100g</Lbl>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
-                  {[
-                    {l:"Energy",v:`${f.energy}kJ`},
-                    {l:"Protein",v:`${f.protein}g`,hi:true},
-                    {l:"Fat",v:`${f.fat}g`},
-                    {l:"Carbs",v:`${f.carbs}g`},
-                    {l:"Fibre",v:`${f.fibre}g`},
-                  ].map(n=><div key={n.l} style={{background:"#FFFFFF",borderRadius:12,padding:"10px 6px",textAlign:"center",border:`1px solid ${n.hi?"#606c3844":"#E0DED8"}`}}>
-                    <div style={{fontSize:9,fontWeight:600,color:n.hi?"#5C5C5C":"#606c38",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>{n.l}</div>
-                    <div style={{fontSize:14,fontWeight:700,color:n.hi?"#5C5C5C":"#FFFFFF"}}>{n.v}</div>
-                  </div>)}
-                </div>
-
-                {/* Protein comparison bar */}
-                <Lbl>Protein strength (8–14g range)</Lbl>
-                <div style={{height:10,background:"#283618",borderRadius:10,overflow:"hidden",marginBottom:6}}>
-                  <div style={{height:"100%",background:`linear-gradient(90deg,#5C5C5C,#5C5C5C)`,width:`${pctOfMax}%`,borderRadius:10}}/>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#E0DED8",fontWeight:600,marginBottom:16}}>
-                  <span>8g (low)</span><span>11g (supermarket)</span><span>14g (pro)</span>
-                </div>
-
-                {/* Baking tips */}
-                {f.tips && <><Lbl>Baking tips</Lbl>
-                <div style={{background:"#FFFFFF",borderRadius:12,padding:"12px 14px",border:"1px solid #E0DED8"}}>
-                  <p style={{fontSize:13,color:"#606c38",lineHeight:1.65}}>{f.tips}</p>
-                </div></>}
-
-                {!f.isCustom&&<div style={{fontSize:11,color:"#E0DED8",marginTop:12}}>Sodium: {f.sodium}mg · {f.where}</div>}
-                {f.isCustom&&<button onClick={e=>{e.stopPropagation();setUserFlours(p=>p.filter(x=>x.id!==f.id));setExpandedFlour(null);}}
-                  style={{marginTop:14,padding:"8px 14px",borderRadius:10,background:"#FFF0F0",color:"#9E3A3A",fontSize:12,fontWeight:600}}>Delete</button>}
-              </div>}
+            if(allPhotos.length===0) return <Card style={{textAlign:"center",padding:"30px 20px"}}>
+              <div style={{fontSize:40,marginBottom:8}}>📷</div>
+              <p style={{color:"#6E6E6E",fontSize:14}}>No photos yet. Add photos to your bake steps or reviews.</p>
             </Card>;
-          })}
 
-          {filteredFlours.length===0 && <Card><p style={{textAlign:"center",color:"#606c38",padding:"20px 0"}}>No flours match your search.</p></Card>}
+            // Group by month
+            const grouped = {};
+            allPhotos.forEach(p=>{
+              const d=new Date(p.ts);
+              const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+              const label=d.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
+              if(!grouped[key]) grouped[key]={label,photos:[]};
+              grouped[key].photos.push(p);
+            });
+
+            return <>
+              <div style={{fontSize:14,color:"#606c38",marginBottom:16}}>{allPhotos.length} photo{allPhotos.length!==1?"s":""} across {savedLogs.filter(l=>l.id!=='__active_bake__').length} bakes</div>
+              {Object.entries(grouped).sort((a,b)=>b[0].localeCompare(a[0])).map(([key,{label,photos}])=>(
+                <div key={key} style={{marginBottom:20}}>
+                  <div style={{fontSize:13,fontWeight:600,color:"#606c38",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>{label}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                    {photos.map(p=>(
+                      <div key={p.key} onClick={()=>{setViewingLog(p.logId);setLogTab("bakes");}} style={{cursor:"pointer",position:"relative",paddingTop:"100%",borderRadius:12,overflow:"hidden",border:"1px solid #E0DED8"}}>
+                        <img src={p.src} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+                        <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent, rgba(0,0,0,0.7))",padding:"16px 6px 5px",fontSize:10,fontWeight:600,color:"#FFFFFF",lineHeight:1.3}}>
+                          {p.label}<br/><span style={{opacity:0.7}}>{p.recipeName}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>;
+          })()}
+
+          {/* ════════ TRENDS SUB-TAB ════════ */}
+          {logTab==="trends" && (()=>{
+            const logs = savedLogs.filter(l=>l.id!=='__active_bake__' && l.startTime).sort((a,b)=>(a.startTime||0)-(b.startTime||0));
+            if(logs.length<2) return <Card style={{textAlign:"center",padding:"30px 20px"}}>
+              <div style={{fontSize:40,marginBottom:8}}>📊</div>
+              <p style={{color:"#6E6E6E",fontSize:14}}>Complete at least 2 bakes to see trends.</p>
+            </Card>;
+
+            // Compute stats
+            const rated    = logs.filter(l=>l.review?.rating);
+            const durations = logs.filter(l=>l.endTime&&l.startTime).map(l=>Math.round((l.endTime-l.startTime)/60000));
+            const avgDur   = durations.length ? Math.round(durations.reduce((a,v)=>a+v,0)/durations.length) : 0;
+            const avgRating = rated.length ? (rated.reduce((a,l)=>a+l.review.rating,0)/rated.length).toFixed(1) : null;
+
+            // Bakes per recipe
+            const byRecipe = {};
+            logs.forEach(l=>{ const n=l.recipeName||"Untitled"; byRecipe[n]=(byRecipe[n]||0)+1; });
+            const topRecipes = Object.entries(byRecipe).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+            // Monthly bake count
+            const byMonth = {};
+            logs.forEach(l=>{
+              const d=new Date(l.startTime);
+              const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+              const label=d.toLocaleDateString("en-AU",{month:"short",year:"2-digit"});
+              if(!byMonth[k]) byMonth[k]={label,count:0};
+              byMonth[k].count++;
+            });
+            const months = Object.entries(byMonth).sort((a,b)=>a[0].localeCompare(b[0]));
+            const maxMonth = Math.max(...months.map(m=>m[1].count));
+
+            // Rating over time (last 20 rated bakes)
+            const ratedLast = rated.slice(-20);
+            const maxRating = 5;
+
+            return <>
+              {/* Summary stats */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}}>
+                <Card style={{textAlign:"center",padding:"14px 8px",marginBottom:0}}>
+                  <div style={{fontSize:22,fontWeight:700,color:"#283618"}}>{logs.length}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.05em",marginTop:2}}>Total Bakes</div>
+                </Card>
+                <Card style={{textAlign:"center",padding:"14px 8px",marginBottom:0}}>
+                  <div style={{fontSize:22,fontWeight:700,color:"#283618"}}>{avgRating||"—"}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.05em",marginTop:2}}>Avg Rating</div>
+                </Card>
+                <Card style={{textAlign:"center",padding:"14px 8px",marginBottom:0}}>
+                  <div style={{fontSize:22,fontWeight:700,color:"#283618"}}>{avgDur?fmtDur(avgDur):"—"}</div>
+                  <div style={{fontSize:10,fontWeight:600,color:"#6E6E6E",textTransform:"uppercase",letterSpacing:"0.05em",marginTop:2}}>Avg Duration</div>
+                </Card>
+              </div>
+
+              {/* Bake frequency bar chart */}
+              <SecH>Bake Frequency</SecH>
+              <Card>
+                <div style={{display:"flex",alignItems:"flex-end",gap:4,height:100}}>
+                  {months.map(([k,{label,count}])=>(
+                    <div key={k} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                      <div style={{fontSize:10,fontWeight:700,color:"#283618"}}>{count}</div>
+                      <div style={{width:"100%",background:"#606c38",borderRadius:"4px 4px 0 0",height:`${(count/maxMonth)*70}px`,minHeight:4,transition:"height 0.3s"}}/>
+                      <div style={{fontSize:9,fontWeight:600,color:"#6E6E6E",whiteSpace:"nowrap"}}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Rating trend */}
+              {ratedLast.length>=2 && <>
+                <SecH>Rating Trend</SecH>
+                <Card>
+                  <div style={{position:"relative",height:80,marginBottom:4}}>
+                    {/* Y-axis labels */}
+                    <div style={{position:"absolute",left:0,top:0,fontSize:9,color:"#ACACAC",fontWeight:600}}>5</div>
+                    <div style={{position:"absolute",left:0,bottom:0,fontSize:9,color:"#ACACAC",fontWeight:600}}>1</div>
+                    {/* Grid lines */}
+                    {[1,2,3,4,5].map(v=>(
+                      <div key={v} style={{position:"absolute",left:16,right:0,top:`${((maxRating-v)/(maxRating-1))*100}%`,borderBottom:"1px dashed #E0DED8"}}/>
+                    ))}
+                    {/* Line chart via SVG */}
+                    <svg viewBox={`0 0 ${(ratedLast.length-1)*40+20} 80`} preserveAspectRatio="none" style={{position:"absolute",left:16,right:0,top:0,bottom:0,width:"calc(100% - 16px)",height:"100%"}}>
+                      <polyline
+                        fill="none" stroke="#606c38" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        points={ratedLast.map((l,i)=>{
+                          const x = ratedLast.length>1 ? (i/(ratedLast.length-1)) * ((ratedLast.length-1)*40) + 10 : 10;
+                          const y = 80 - ((l.review.rating - 1) / (maxRating - 1)) * 76 - 2;
+                          return `${x},${y}`;
+                        }).join(" ")}/>
+                      {ratedLast.map((l,i)=>{
+                        const x = ratedLast.length>1 ? (i/(ratedLast.length-1)) * ((ratedLast.length-1)*40) + 10 : 10;
+                        const y = 80 - ((l.review.rating - 1) / (maxRating - 1)) * 76 - 2;
+                        return <circle key={i} cx={x} cy={y} r="4" fill="#283618" stroke="#FFFFFF" strokeWidth="2"/>;
+                      })}
+                    </svg>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",paddingLeft:16,fontSize:9,color:"#ACACAC",fontWeight:600}}>
+                    <span>{new Date(ratedLast[0].startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</span>
+                    <span>{new Date(ratedLast[ratedLast.length-1].startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</span>
+                  </div>
+                </Card>
+              </>}
+
+              {/* Top recipes */}
+              <SecH>Most Baked Recipes</SecH>
+              <Card style={{padding:0,overflow:"hidden"}}>
+                {topRecipes.map(([name,count],i)=>{
+                  const maxCount=topRecipes[0][1];
+                  return <div key={name} style={{padding:"12px 18px",borderBottom:i<topRecipes.length-1?"0.5px solid #E0DED8":"none",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:24,height:24,borderRadius:8,background:"#283618",color:"#F8F8F6",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div>
+                      <div style={{height:4,background:"#E0DED8",borderRadius:4,marginTop:4,overflow:"hidden"}}>
+                        <div style={{height:"100%",background:"#606c38",borderRadius:4,width:`${(count/maxCount)*100}%`,transition:"width 0.3s"}}/>
+                      </div>
+                    </div>
+                    <div style={{fontSize:15,fontWeight:700,color:"#283618",flexShrink:0}}>{count}</div>
+                  </div>;
+                })}
+              </Card>
+
+              {/* Duration trend */}
+              {durations.length>=2 && <>
+                <SecH>Bake Duration Over Time</SecH>
+                <Card>
+                  <div style={{position:"relative",height:80,marginBottom:4}}>
+                    {(()=>{
+                      const dLogs=logs.filter(l=>l.endTime&&l.startTime).slice(-20);
+                      const durs=dLogs.map(l=>Math.round((l.endTime-l.startTime)/60000));
+                      const minD=Math.min(...durs), maxD=Math.max(...durs);
+                      const range=maxD-minD||1;
+                      return <>
+                        <div style={{position:"absolute",left:0,top:0,fontSize:9,color:"#ACACAC",fontWeight:600}}>{fmtDur(maxD)}</div>
+                        <div style={{position:"absolute",left:0,bottom:0,fontSize:9,color:"#ACACAC",fontWeight:600}}>{fmtDur(minD)}</div>
+                        <svg viewBox={`0 0 ${(durs.length-1)*40+20} 80`} preserveAspectRatio="none" style={{position:"absolute",left:40,right:0,top:0,bottom:0,width:"calc(100% - 40px)",height:"100%"}}>
+                          <polyline fill="none" stroke="#5C5C5C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                            points={durs.map((d,i)=>{
+                              const x=durs.length>1?(i/(durs.length-1))*((durs.length-1)*40)+10:10;
+                              const y=80-((d-minD)/range)*72-4;
+                              return `${x},${y}`;
+                            }).join(" ")}/>
+                          {durs.map((d,i)=>{
+                            const x=durs.length>1?(i/(durs.length-1))*((durs.length-1)*40)+10:10;
+                            const y=80-((d-minD)/range)*72-4;
+                            return <circle key={i} cx={x} cy={y} r="3.5" fill="#5C5C5C" stroke="#FFFFFF" strokeWidth="1.5"/>;
+                          })}
+                        </svg>
+                        <div style={{display:"flex",justifyContent:"space-between",position:"absolute",bottom:-16,left:40,right:0,fontSize:9,color:"#ACACAC",fontWeight:600}}>
+                          <span>{new Date(dLogs[0].startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</span>
+                          <span>{new Date(dLogs[dLogs.length-1].startTime).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</span>
+                        </div>
+                      </>;
+                    })()}
+                  </div>
+                  <div style={{height:20}}/>
+                </Card>
+              </>}
+            </>;
+          })()}
+          </>}
         </div>}
 
       </div>
