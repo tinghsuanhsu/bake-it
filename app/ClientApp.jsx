@@ -3042,7 +3042,7 @@ export default function App() {
         </div>}
 
       </div>
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/>
       <input ref={scanFileRef} type="file" accept="image/*" onChange={e=>{
         const file=e.target.files[0]; if(!file) return; e.target.value="";
         const reader=new FileReader();
