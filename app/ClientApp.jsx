@@ -260,6 +260,75 @@ function toDateTimeLocal(ts) {
 function fromDateTimeLocal(val) { return val ? new Date(val).getTime() : null; }
 
 // ── Image compression ─────────────────────────────────────────────────────────
+// ── Extract photo date from EXIF metadata ─────────────────────────────────────
+// Reads DateTimeOriginal (tag 0x9003) from JPEG EXIF. Returns epoch ms or null.
+function extractExifDate(file) {
+  return new Promise(resolve => {
+    if (!file || !file.type?.startsWith('image/')) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const view = new DataView(ev.target.result);
+        // Check JPEG SOI marker
+        if (view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
+        let offset = 2;
+        while (offset < view.byteLength - 2) {
+          const marker = view.getUint16(offset);
+          if (marker === 0xFFE1) { // APP1 (EXIF)
+            const exifOffset = offset + 4;
+            // Check "Exif\0\0"
+            const exifHeader = String.fromCharCode(
+              view.getUint8(exifOffset), view.getUint8(exifOffset+1),
+              view.getUint8(exifOffset+2), view.getUint8(exifOffset+3)
+            );
+            if (exifHeader !== 'Exif') { resolve(null); return; }
+            const tiffStart = exifOffset + 6;
+            const byteOrder = view.getUint16(tiffStart);
+            const le = byteOrder === 0x4949; // little-endian
+            const g16 = (o) => view.getUint16(tiffStart + o, le);
+            const g32 = (o) => view.getUint32(tiffStart + o, le);
+            // Read IFD0
+            let ifdOffset = g32(4);
+            const findTag = (ifdOff, tag) => {
+              const count = g16(ifdOff);
+              for (let i = 0; i < count; i++) {
+                const entryOff = ifdOff + 2 + i * 12;
+                if (g16(entryOff) === tag) return entryOff;
+              }
+              return null;
+            };
+            // Look for ExifIFD pointer (tag 0x8769) in IFD0
+            const exifPtrEntry = findTag(ifdOffset, 0x8769);
+            if (!exifPtrEntry) { resolve(null); return; }
+            const exifIfdOffset = g32(exifPtrEntry + 8);
+            // Look for DateTimeOriginal (0x9003) in ExifIFD
+            const dtEntry = findTag(exifIfdOffset, 0x9003);
+            if (!dtEntry) { resolve(null); return; }
+            const strOffset = g32(dtEntry + 8);
+            let dateStr = '';
+            for (let i = 0; i < 19; i++) {
+              dateStr += String.fromCharCode(view.getUint8(tiffStart + strOffset + i));
+            }
+            // Format: "2024:03:15 14:30:00" → parse
+            const m = dateStr.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+            if (m) {
+              const d = new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+              if (!isNaN(d.getTime())) { resolve(d.getTime()); return; }
+            }
+            resolve(null); return;
+          }
+          // Skip to next marker
+          const segLen = view.getUint16(offset + 2);
+          offset += 2 + segLen;
+        }
+        resolve(null);
+      } catch { resolve(null); }
+    };
+    // Only read first 128KB — EXIF is always near the start
+    reader.readAsArrayBuffer(file.slice(0, 131072));
+  });
+}
+
 function compressImage(file, maxPx = 1200, quality = 0.75) {
   return new Promise(resolve => {
     const reader = new FileReader();
@@ -1324,15 +1393,21 @@ export default function App() {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-    compressImage(file).then(src => {
+    // Extract EXIF date in parallel with compression
+    Promise.all([
+      compressImage(file),
+      extractExifDate(file),
+    ]).then(([src, exifTs]) => {
+      // Use EXIF date if available, then file lastModified, then upload time
+      const ts = exifTs || file.lastModified || Date.now();
       if (reviewPhotoHandler) {
-        reviewPhotoHandler(src);
+        reviewPhotoHandler(src, ts);
         setReviewPhotoHandler(null);
       } else if (foldPhotoTarget != null) {
         setFoldPhotos(p => ({ ...p, [foldPhotoTarget]: src }));
         setFoldPhotoTarget(null);
       } else if (photoTarget != null) {
-        setStepPhotos(p => ({ ...p, [photoTarget]: [...(p[photoTarget] || []), { src, ts: Date.now() }] }));
+        setStepPhotos(p => ({ ...p, [photoTarget]: [...(p[photoTarget] || []), { src, ts }] }));
       }
     });
   };
@@ -2545,7 +2620,7 @@ export default function App() {
                           </div>
                         ))}
                         <button onClick={()=>{
-                          setReviewPhotoHandler(()=>src=>updateStepPhotos([...stepPhotos,{src,ts:Date.now()}]));
+                          setReviewPhotoHandler(()=>(src,ts)=>updateStepPhotos([...stepPhotos,{src,ts:ts||Date.now()}]));
                           fileRef.current?.click();
                         }} style={{width:72,height:72,borderRadius:12,border:"2px dashed #E0DED8",background:"transparent",color:"#6E6E6E",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>+</button>
                       </div>
