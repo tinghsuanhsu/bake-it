@@ -538,11 +538,7 @@ function useDb() {
     clearTimeout(activeBakeThrottleTimer.current);
     activeBakePending.current = null;
     try { localStorage.removeItem('bakeIt_activeBake'); } catch {}
-    fetch('/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: '__active_bake__', _activeBakeState: null, _deleted: true }),
-    }).catch(() => {});
+    fetch('/api/logs/__active_bake__', { method: 'DELETE' }).catch(() => {});
   }, []);
 
   // Immediate flush — called on visibilitychange, pagehide, beforeunload
@@ -877,6 +873,8 @@ export default function App() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   // DB INIT — load recipes + logs, restore active bake
+  // Optimised: shows cached data instantly, fetches fresh data in background.
+  // db-init only runs on first visit (flag stored in localStorage).
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     // Build starter recipes here (inside effect) so module imports are fully resolved
@@ -914,59 +912,85 @@ export default function App() {
       } catch { return false; }
     };
 
-    fetch('/api/db-init', { method: 'POST' })
+    const processRecipes = (dbRecipes) => {
+      const dbIds = new Set(dbRecipes.map(r => r.id));
+      const starterIds = new Set(STARTER_RECIPES.map(s => s.id));
+      const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
+      missingStarters.forEach(r => saveRecipe(r));
+      const patchedDbRecipes = dbRecipes.map(r => {
+        if (!starterIds.has(r.id)) return r;
+        let patched = { ...r };
+        const stepIds = new Set((patched.steps || []).map(s => s.id));
+        const missing = LEGACY_PREPEND_STEPS.filter(s => !stepIds.has(s.id));
+        if (missing.length) patched = { ...patched, steps: [...missing, ...(patched.steps || [])] };
+        if (!patched.tempUnit || patched.tempUnit === 'F') {
+          patched = { ...patched, tempUnit: 'C', ddt: STARTER_DDT_C[r.id] || '26' };
+        }
+        if (missing.length || !r.tempUnit || r.tempUnit === 'F') saveRecipe(patched);
+        return patched;
+      });
+      const all = dbRecipes.length > 0
+        ? [...patchedDbRecipes, ...missingStarters]
+        : STARTER_RECIPES;
+      const hasSortOrder = all.some(r => r.sortOrder != null);
+      if (hasSortOrder) all.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+      return all;
+    };
+
+    // ── Phase 1: Instant display from localStorage cache ──────────────────────
+    let showedCached = false;
+    try {
+      const cachedRecipes = JSON.parse(localStorage.getItem('bakeIt_recipesCache') || 'null');
+      const cachedLogs    = JSON.parse(localStorage.getItem('bakeIt_logsCache') || 'null');
+      if (cachedRecipes?.length) {
+        setRecipes(cachedRecipes);
+        if (cachedLogs?.length) setSavedLogs(cachedLogs.filter(l => l.id !== '__active_bake__'));
+        // Restore active bake from localStorage immediately
+        const lsRaw = localStorage.getItem('bakeIt_activeBake');
+        if (lsRaw) restoreBake(lsRaw, cachedRecipes);
+        setDbLoading(false);
+        showedCached = true;
+      }
+    } catch {}
+
+    // ── Phase 2: Fetch fresh data from DB in background ───────────────────────
+    // Only run db-init on first visit — subsequent loads skip it entirely
+    const dbReady = localStorage.getItem('bakeIt_dbReady')
+      ? Promise.resolve()
+      : fetch('/api/db-init', { method: 'POST' })
+          .then(() => { try { localStorage.setItem('bakeIt_dbReady', '1'); } catch {} })
+          .catch(() => {}); // tables probably already exist — proceed anyway
+
+    dbReady
       .then(() => Promise.all([
         fetch('/api/recipes').then(r => r.json()),
         fetch('/api/logs').then(r => r.json()),
       ]))
       .then(([recipeData, logData]) => {
         const dbRecipes = Array.isArray(recipeData) ? recipeData : [];
-        const dbIds = new Set(dbRecipes.map(r => r.id));
-        const starterIds = new Set(STARTER_RECIPES.map(s => s.id));
-
-        // Seed any missing starter recipes
-        const missingStarters = STARTER_RECIPES.filter(r => !dbIds.has(r.id));
-        missingStarters.forEach(r => saveRecipe(r));
-
-        // Migrate starter recipes: prepend missing steps, fix tempUnit
-        const patchedDbRecipes = dbRecipes.map(r => {
-          if (!starterIds.has(r.id)) return r; // user recipe — untouched
-          let patched = { ...r };
-          const stepIds = new Set((patched.steps || []).map(s => s.id));
-          const missing = LEGACY_PREPEND_STEPS.filter(s => !stepIds.has(s.id));
-          if (missing.length) patched = { ...patched, steps: [...missing, ...(patched.steps || [])] };
-          if (!patched.tempUnit || patched.tempUnit === 'F') {
-            patched = { ...patched, tempUnit: 'C', ddt: STARTER_DDT_C[r.id] || '26' };
-          }
-          if (missing.length || !r.tempUnit || r.tempUnit === 'F') saveRecipe(patched);
-          return patched;
-        });
-
-        const allRecipesLoaded = dbRecipes.length > 0
-          ? [...patchedDbRecipes, ...missingStarters]
-          : STARTER_RECIPES;
-
-        // Restore user-defined order if any recipes have sortOrder set
-        const hasSortOrder = allRecipesLoaded.some(r => r.sortOrder != null);
-        if (hasSortOrder) {
-          allRecipesLoaded.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
-        }
-
+        const allRecipesLoaded = processRecipes(dbRecipes);
         setRecipes(allRecipesLoaded);
 
-        if (Array.isArray(logData) && logData.length > 0) {
-          setSavedLogs(logData.filter(l => l.id !== '__active_bake__'));
-        }
+        const logs = Array.isArray(logData) ? logData.filter(l => l.id !== '__active_bake__') : [];
+        setSavedLogs(logs);
 
-        // Restore active bake — localStorage first, then DB fallback
-        let restored = false;
+        // Cache for instant display next time
         try {
-          const lsRaw = localStorage.getItem('bakeIt_activeBake');
-          if (lsRaw) restored = restoreBake(lsRaw, allRecipesLoaded);
+          localStorage.setItem('bakeIt_recipesCache', JSON.stringify(allRecipesLoaded));
+          localStorage.setItem('bakeIt_logsCache', JSON.stringify(logs));
         } catch {}
-        if (!restored) {
-          const dbActive = logData?.find(l => l.id === '__active_bake__');
-          if (dbActive?._activeBakeState) restoreBake(dbActive._activeBakeState, allRecipesLoaded);
+
+        // Restore active bake if not already done from cache
+        if (!showedCached) {
+          let restored = false;
+          try {
+            const lsRaw = localStorage.getItem('bakeIt_activeBake');
+            if (lsRaw) restored = restoreBake(lsRaw, allRecipesLoaded);
+          } catch {}
+          if (!restored) {
+            const dbActive = logData?.find(l => l.id === '__active_bake__');
+            if (dbActive?._activeBakeState) restoreBake(dbActive._activeBakeState, allRecipesLoaded);
+          }
         }
 
         setDbLoading(false);
@@ -975,7 +999,14 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Persist active bake state ────────────────────────────────────────────────
+  const hasInitialised = useRef(false);
   useEffect(() => {
+    // Skip the first render — bakeStarted is false initially before restore runs.
+    // Clearing here would delete the saved state before we can restore it.
+    if (!hasInitialised.current) {
+      hasInitialised.current = true;
+      if (!bakeStarted) return; // don't clear on first render
+    }
     if (!bakeStarted) {
       clearActiveBake();
       return;
@@ -1096,6 +1127,25 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('bakeIt_userFlours', JSON.stringify(userFlours)); } catch {}
   }, [userFlours]);
+
+  // ── Update localStorage cache when recipes/logs change ─────────────────────
+  // Debounced to avoid thrashing on rapid state updates
+  const recipeCacheTimer = useRef(null);
+  useEffect(() => {
+    if (!recipes.length) return;
+    clearTimeout(recipeCacheTimer.current);
+    recipeCacheTimer.current = setTimeout(() => {
+      try { localStorage.setItem('bakeIt_recipesCache', JSON.stringify(recipes)); } catch {}
+    }, 500);
+  }, [recipes]);
+
+  const logsCacheTimer = useRef(null);
+  useEffect(() => {
+    clearTimeout(logsCacheTimer.current);
+    logsCacheTimer.current = setTimeout(() => {
+      try { localStorage.setItem('bakeIt_logsCache', JSON.stringify(savedLogs)); } catch {}
+    }, 500);
+  }, [savedLogs]);
 
   // ── Scroll to top on navigation ──────────────────────────────────────────────
   useEffect(() => {
